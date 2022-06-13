@@ -2,6 +2,7 @@
     "malilib.gui.button.render_layers_gui.set_to_player": "Set Here",
 
     "minihud.gui.button.config_gui.colors": "Colors",
+    "minihud.gui.button.config_gui.formats": "Formats",
     "minihud.gui.button.config_gui.generic": "Generic",
     "minihud.gui.button.config_gui.info_toggles": "Info Toggles",
     "minihud.gui.button.config_gui.info_line_order": "Info Line Order",

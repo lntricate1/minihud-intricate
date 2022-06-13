@@ -2,6 +2,9 @@ package fi.dy.masa.minihud.config;
 
 import java.io.File;
 import java.util.List;
+
+import javax.management.ImmutableDescriptor;
+
 import com.google.common.collect.ImmutableList;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -37,9 +40,9 @@ public class Configs implements IConfigHandler
         public static final ConfigBoolean       HONEY_TOOLTIPS                      = new ConfigBoolean("honeyTooltips", false, "Adds the honey level to the tooltip of Bee Hive and Bee Nest items");
         public static final ConfigOptionList    BLOCK_GRID_OVERLAY_MODE             = new ConfigOptionList("blockGridOverlayMode", BlockGridMode.ALL, "The block grid render mode");
         public static final ConfigInteger       BLOCK_GRID_OVERLAY_RADIUS           = new ConfigInteger("blockGridOverlayRadius", 32, "The radius of the block grid lines to render");
-        public static final ConfigString        COORDINATE_FORMAT_STRING            = new ConfigString("coordinateFormat", "x: %.1f y: %.1f z: %.1f", "The format string for the coordinate line.\nNeeds to have three %f format strings!\nDefault: x: %.1f y: %.1f z: %.1f");
-        public static final ConfigString        DATE_FORMAT_REAL                    = new ConfigString("dateFormatReal", "yyyy-MM-dd HH:mm:ss", "The format string for real time, see the Java SimpleDateFormat\nclass for the format patterns, if needed.");
-        public static final ConfigString        DATE_FORMAT_MINECRAFT               = new ConfigString("dateFormatMinecraft", "MC time: (day {DAY}) {HOUR}:{MIN}:xx", "The format string for the Minecraft time.\nThe supported placeholders are: {DAY_1}, {DAY}, {HOUR}, {MIN}, {SEC}.\n{DAY_1} starts the day counter from 1, {DAY} starts from 0.");
+        //public static final ConfigString        COORDINATE_FORMAT_STRING            = new ConfigString("coordinateFormat", "x: %.1f y: %.1f z: %.1f", "The format string for the coordinate line.\nNeeds to have three %f format strings!\nDefault: x: %.1f y: %.1f z: %.1f");
+        //public static final ConfigString        DATE_FORMAT_REAL                    = new ConfigString("dateFormatReal", "yyyy-MM-dd HH:mm:ss", "The format string for real time, see the Java SimpleDateFormat\nclass for the format patterns, if needed.");
+        //public static final ConfigString        DATE_FORMAT_MINECRAFT               = new ConfigString("dateFormatMinecraft", "MC time: (day {DAY}) {HOUR}:{MIN}:xx", "The format string for the Minecraft time.\nThe supported placeholders are: {DAY_1}, {DAY}, {HOUR}, {MIN}, {SEC}.\n{DAY_1} starts the day counter from 1, {DAY} starts from 0.");
         public static final ConfigBoolean       DEBUG_MESSAGES                      = new ConfigBoolean("debugMessages", false, "Enables some debug messages in the game console");
         public static final ConfigBoolean       DEBUG_RENDERER_PATH_MAX_DIST        = new ConfigBoolean("debugRendererPathFindingEnablePointWidth", true, "If true, then the vanilla pathfinding debug renderer\nwill render the path point width boxes.");
         public static final ConfigBoolean       DONT_RESET_SEED_ON_DIMENSION_CHANGE = new ConfigBoolean("dontResetSeedOnDimensionChange", false, "Don't reset the world seed when just changing dimensions.\nSome mods may use per-dimension seeds, so by default the seed\nis reset every time the player changes dimensions.");
@@ -79,7 +82,7 @@ public class Configs implements IConfigHandler
         public static final ConfigInteger       TIME_DAY_DIVISOR                    = new ConfigInteger("timeDayDivisor", 24000, 1, Integer.MAX_VALUE, "The divisor value for the modulo of the day time");
         public static final ConfigInteger       TIME_TOTAL_DIVISOR                  = new ConfigInteger("timeTotalDivisor", 24000, 1, Integer.MAX_VALUE, "The divisor value for the modulo of the total world time");
         public static final ConfigHotkey        TOGGLE_KEY                          = new ConfigHotkey("toggleKey", "H", KeybindSettings.RELEASE_EXCLUSIVE, "The main toggle key");
-        public static final ConfigBoolean       USE_CUSTOMIZED_COORDINATES          = new ConfigBoolean("useCustomizedCoordinateFormat", true, "Use the customized coordinate format string");
+        //public static final ConfigBoolean       USE_CUSTOMIZED_COORDINATES          = new ConfigBoolean("useCustomizedCoordinateFormat", true, "Use the customized coordinate format string");
         public static final ConfigBoolean       USE_FONT_SHADOW                     = new ConfigBoolean("useFontShadow", false, "Use font shadow");
         public static final ConfigBoolean       USE_TEXT_BACKGROUND                 = new ConfigBoolean("useTextBackground", true, "Use a solid background color behind the text");
 
@@ -101,7 +104,7 @@ public class Configs implements IConfigHandler
                 SORT_LINES_BY_LENGTH,
                 SORT_LINES_REVERSED,
                 STRUCTURES_RENDER_THROUGH,
-                USE_CUSTOMIZED_COORDINATES,
+                //USE_CUSTOMIZED_COORDINATES,
                 USE_FONT_SHADOW,
                 USE_TEXT_BACKGROUND,
 
@@ -117,9 +120,9 @@ public class Configs implements IConfigHandler
                 HUD_ALIGNMENT,
 
                 BLOCK_GRID_OVERLAY_RADIUS,
-                COORDINATE_FORMAT_STRING,
-                DATE_FORMAT_REAL,
-                DATE_FORMAT_MINECRAFT,
+                //COORDINATE_FORMAT_STRING,
+                //DATE_FORMAT_REAL,
+                //DATE_FORMAT_MINECRAFT,
                 FONT_SCALE,
                 LIGHT_LEVEL_MARKER_SIZE,
                 LIGHT_LEVEL_NUMBER_OFFSET_BLOCK_X,
@@ -149,6 +152,24 @@ public class Configs implements IConfigHandler
 
     public static class Colors
     {
+        public static final ConfigColor COLORFG                                 = new ConfigColor("ColorFG",                            "#00F8F8F2", "Variable color FG");
+        public static final ConfigColor COLORBG                                 = new ConfigColor("ColorBG",                            "#00282A36", "Variable color BG");
+        public static final ConfigColor COLOR0                                  = new ConfigColor("Color0",                             "#00000000", "Variable color 0");
+        public static final ConfigColor COLOR1                                  = new ConfigColor("Color1",                             "#00FF5555", "Variable color 1");
+        public static final ConfigColor COLOR2                                  = new ConfigColor("Color2",                             "#0050FA7B", "Variable color 2");
+        public static final ConfigColor COLOR3                                  = new ConfigColor("Color3",                             "#00F1FA8C", "Variable color 3");
+        public static final ConfigColor COLOR4                                  = new ConfigColor("Color4",                             "#00BD93F9", "Variable color 4");
+        public static final ConfigColor COLOR5                                  = new ConfigColor("Color5",                             "#00FF79C6", "Variable color 5");
+        public static final ConfigColor COLOR6                                  = new ConfigColor("Color6",                             "#008BE9FD", "Variable color 6");
+        public static final ConfigColor COLOR7                                  = new ConfigColor("Color7",                             "#00BFBFBF", "Variable color 7");
+        public static final ConfigColor COLOR8                                  = new ConfigColor("Color8",                             "#004D4D4D", "Variable color 8");
+        public static final ConfigColor COLOR9                                  = new ConfigColor("Color9",                             "#00FF6E67", "Variable color 9");
+        public static final ConfigColor COLOR10                                 = new ConfigColor("Color10",                            "#005AF78E", "Variable color 10");
+        public static final ConfigColor COLOR11                                 = new ConfigColor("Color11",                            "#00F4F99D", "Variable color 11");
+        public static final ConfigColor COLOR12                                 = new ConfigColor("Color12",                            "#00CAA9FA", "Variable color 12");
+        public static final ConfigColor COLOR13                                 = new ConfigColor("Color13",                            "#00FF92D0", "Variable color 13");
+        public static final ConfigColor COLOR14                                 = new ConfigColor("Color14",                            "#009AEDFE", "Variable color 14");
+        public static final ConfigColor COLOR15                                 = new ConfigColor("Color15",                            "#00E6E6E6", "Variable color 15");
         public static final ConfigColor BLOCK_GRID_OVERLAY_COLOR                = new ConfigColor("blockGridOverlayColor",              "#80FFFFFF", "Color for the block grid overlay");
         public static final ConfigColor LIGHT_LEVEL_MARKER_DARK                 = new ConfigColor("lightLevelMarkerDark",               "#FFFF4848", "The color for the spawnable spots marker");
         public static final ConfigColor LIGHT_LEVEL_MARKER_LIT                  = new ConfigColor("lightLevelMarkerLit",                "#FFFFFF33", "The color for the safe (during day) spots marker");
@@ -200,8 +221,213 @@ public class Configs implements IConfigHandler
                 SPAWN_REAL_OUTER_OVERLAY_COLOR,
                 SPAWNABLE_COLUMNS_OVERLAY_COLOR,
                 TEXT_BACKGROUND_COLOR,
-                TEXT_COLOR
+                TEXT_COLOR,
+                COLORFG,
+                COLORBG,
+                COLOR0,
+                COLOR1,
+                COLOR2,
+                COLOR3,
+                COLOR4,
+                COLOR5,
+                COLOR6,
+                COLOR7,
+                COLOR8,
+                COLOR9,
+                COLOR10,
+                COLOR11,
+                COLOR12,
+                COLOR13,
+                COLOR14,
+                COLOR15
         );
+    }
+
+    public static class Formats
+    {
+      public static final ConfigString
+        BEE_COUNT_FORMAT                 = new ConfigString("infoBeeCountFormat", "[{\"color\":\"white\",\"text\":\"" +
+        "Bees: \"}, {\"color\":\"aqua\",\"text\":\"{bees}\"}]", "Format of infoBeeCount"),
+        BIOME_FORMAT                     = new ConfigString("infoBiomeFormat", "{\"color\":\"white\",\"text\":\"" +
+        "Biome: {biome}\"}", "Format of infoBiome"),
+        BIOME_REG_NAME_FORMAT            = new ConfigString("infoBiomeRegistryNameFormat", "{\"color\":\"white\",\"text\":\"" +
+        "Biome reg name: {name}\"}", "Format of infoBiomeRegistryName"),
+        BLOCK_BREAK_SPEED_FORMAT         = new ConfigString("infoBlockBreakSpeedFormat", "{\"color\":\"white\",\"text\":\"" +
+        "BBS: {bbs}.2f\"}", "Format of infoBlockBreakSpeed"),
+        BLOCK_IN_CHUNK_FORMAT            = new ConfigString("infoBlockInChunkFormat", "{\"color\":\"white\",\"text\":\"" +
+        "Block: {x}d, {y}d, {z}d within Sub-Chunk: {cx}d, {cy}d, {cz}d\"}", "Format of infoBlockInChunk"),
+        BLOCK_POS_FORMAT                 = new ConfigString("infoBlockPositionFormat", "{\"color\":\"white\",\"text\":\"" +
+        "Block: {x}d, {y}d, {z}d\"}", "Format of infoBlockPosition"),
+        BLOCK_PROPS_SEPARATOR_FORMAT     = new ConfigString("infoBlockPropertiesSeparatorFormat", "{\"color\":\"white\",\"text\":\"" +
+        ":\"}", "Format of the separator used in infoBlockProperties"),
+        BLOCK_PROPS_BOOLEAN_TRUE_FORMAT  = new ConfigString("infoBlockPropertiesBooleanTrueFormat", "[{\"color\":\"white\",\"text\":\"" +
+        "{prop}\"}, {separator}, {\"color\":\"green\",\"text\":\"TRUE\"}]", "Format of boolean properties in infoBlockProperties when they're true"),
+        BLOCK_PROPS_BOOLEAN_FALSE_FORMAT = new ConfigString("infoBlockPropertiesBooleanFalseFormat", "[{\"color\":\"white\",\"text\":\"" +
+        "{prop}\"}, {separator}, {\"color\":\"red\",\"text\":\"FALSE\"}]", "Format of boolean properties in infoBlockProperties when they're false"),
+        BLOCK_PROPS_DIRECTION_FORMAT     = new ConfigString("infoBlockPropertiesDirectionFormat", "[{\"color\":\"white\",\"text\":\"" +
+        "{prop}\"}, {separator}, {\"color\":\"gold\",\"text\":\"{value}\"}]", "Format of direction properties in infoBlockProperties"),
+        BLOCK_PROPS_INT_FORMAT           = new ConfigString("infoBlockPropertiesIntFormat", "[{\"color\":\"white\",\"text\":\"" +
+        "{prop}\"}, {separator}, {\"color\":\"aqua\",\"text\":\"{value}\"}]", "Format of int properties in infoBlockProperties"),
+        BLOCK_PROPS_STRING_FORMAT        = new ConfigString("infoBlockPropertiesStringFormat", "[{\"color\":\"white\",\"text\":\"" +
+        "{prop}\"}, {separator}, {\"color\":\"white\",\"text\":\"{value}\"}]", "Format of string properties in infoBlockProperties"),
+        BLOCK_PROPS_HEADING_FORMAT       = new ConfigString("infoBlockPropertiesHeadingFormat", "{\"color\":\"white\",\"text\":\"" +
+        "{name}\"}", "Format of the heading of infoBlockProperties"),
+        CHUNK_POS_FORMAT                 = new ConfigString("infoChunkPositionFormat", "{\"color\":\"white\",\"text\":\"" +
+        " / Sub-Chunk: {x}d, {y}d, {z}d\"}", "Format of infoChunkPosition"),
+        CHUNK_SECTIONS_FORMAT            = new ConfigString("infoChunkSectionsFormat", "{\"color\":\"white\",\"text\":\"" +
+        "C: {c}d\"}", "Format of infoChunkSections"),
+        CHUNK_SECTIONS_FULL_FORMAT       = new ConfigString("infoChunkSectionsLineFormat", "{\"color\":\"white\",\"text\":\"" +
+        "{c}\"}", "Format of infoChunkSectionsLine"),
+        CHUNK_UPDATES_FORMAT             = new ConfigString("infoChunkUpdatesFormat", "{\"color\":\"white\",\"text\":\"" +
+        "\"}", "Format of infoChunkUpdates"),
+        COORDINATES_FORMAT               = new ConfigString("infoCoordinatesFormat", "{\"color\":\"white\",\"text\":\"" +
+        "XYZ: {x}.2f / {y}.4f / {z}.2f\"}", "Format of infoCoordinates, change precision by changing the numbers"),
+        DIFFICULTY_FORMAT                = new ConfigString("infoDifficultyFormat", "{\"color\":\"white\",\"text\":\"" +
+        "Local Difficulty: {local}.2f // {clamped}.2f (Day {day}d)\"}", "Format of infoDifficulty"),
+        DIMENSION_FORMAT                 = new ConfigString("infoDimensionIdFormat", "{\"color\":\"white\",\"text\":\"" +
+        " / dim: {dim}\"}", "Format of infoDimensionId"),
+        DISTANCE_FORMAT                  = new ConfigString("infoDistanceFormat", "{\"color\":\"white\",\"text\":\"" +
+        "Distance: {d}.2f (x: {dx}.2f y: {dy}.2f z: {dz}.2f) [to x: {rx}.2f y: {ry}.2f z: {rz}.2f]\"}", "Format of infoDistance"),
+        ENTITIES_CLIENT_FORMAT           = new ConfigString("infoEntitiesClientFormat", "{\"color\":\"white\",\"text\":\"" +
+        "Entities - Client: {e}d\"}", "Format of infoEntitiesClient"),
+        ENTITIES_SERVER_FORMAT           = new ConfigString("infoEntitiesServerFormat", "{\"color\":\"white\",\"text\":\"" +
+        ", Server: {e}d\"}", "Format of infoEntitiesServer"),
+        ENTITY_REG_NAME_FORMAT           = new ConfigString("infoEntityRegistryNameFormat", "{\"color\":\"white\",\"text\":\"" +
+        "Entity reg name: {name}s\"}", "Format of infoEntityRegistryName"),
+        FACING_FORMAT                    = new ConfigString("infoFacingFormat", "[{\"color\":\"white\",\"text\":\"" +
+        "Facing: {dir} (\"}, {coord}, {\"color\":\"white\",\"text\":\")\"}]", "Format of infoFacing"),
+        FACING_PX_FORMAT                 = new ConfigString("infoFacingPosXFormat", "{\"color\":\"white\",\"text\":\"" +
+        "Positive X\"}", "Text for infoFacing when facing positive X"),
+        FACING_NX_FORMAT                 = new ConfigString("infoFacingNegXFormat", "{\"color\":\"white\",\"text\":\"" +
+        "Negative X\"}", "Text for infoFacing when facing negative X"),
+        FACING_PZ_FORMAT                 = new ConfigString("infoFacingPosZFormat", "{\"color\":\"white\",\"text\":\"" +
+        "Positive Z\"}", "Text for infoFacing when facing positive Z"),
+        FACING_NZ_FORMAT                 = new ConfigString("infoFacingNegZFormat", "{\"color\":\"white\",\"text\":\"" +
+        "Negative Z\"}", "Text for infoFacing when facing negative Z"),
+        FPS_FORMAT                       = new ConfigString("infoFPSFormat", "{\"color\":\"white\",\"text\":\"" +
+        "{FPS}d fps\"}", "Format of infoFPS"),
+        HONEY_LEVEL_FORMAT               = new ConfigString("infoHoneyLevelFormat", "[{\"color\":\"white\",\"text\":\"" +
+        "Honey: \"}, {\"color\":\"aqua\",\"text\":\"{honey}\"}]", "Format of infoHoneyLevel"),
+        LIGHT_LEVEL_CLIENT_FORMAT        = new ConfigString("infoLightLevelClientFormat", "{\"color\":\"white\",\"text\":\"" +
+        "Client Light: {light}d (block: {block}d, sky: {sky}d)\"}", "Format of infoLightLevelClient"),
+        LIGHT_LEVEL_SERVER_FORMAT        = new ConfigString("infoLightLevelServerFormat", "{\"color\":\"white\",\"text\":\"" +
+        "Server Light: {light}d (block: {block}d, sky: {sky}d)\"}", "Format of infoLightLevelServer"),
+        LOOKING_AT_BLOCK_FORMAT          = new ConfigString("infoLookingAtBlockFormat", "{\"color\":\"white\",\"text\":\"" +
+        "Looking at block: {x}d, {y}d, {z}d\"}", "Format of infoLookingAtBlock"),
+        LOOKING_AT_BLOCK_CHUNK_FORMAT    = new ConfigString("infoLookingAtBlockInChunkFormat", "{\"color\":\"white\",\"text\":\"" +
+        " // Block: {x}d, {y}d, {z}d in Sub-Chunk: {cx}d, {cy}d, {cz}d\"}", "Format of infoLookingAtBlockInChunk"),
+        LOOKING_AT_ENTITY_FORMAT         = new ConfigString("infoLookingAtEntityFormat", "{\"color\":\"white\",\"text\":\"" +
+        "Entity: {entity}\"}", "Format of infoLookingAtEntity"),
+        LOOKING_AT_ENTITY_LIVING_FORMAT  = new ConfigString("infoLookingAtEntityLivingFormat", "{\"color\":\"white\",\"text\":\"" +
+        "Entity: {entity} - HP: {hp}.1f / {maxhp}.1f\"}", "Format of infoLookingAtEntity when entity is living"),
+        MEMORY_USAGE_FORMAT              = new ConfigString("infoMemoryUsageFormat", "{\"color\":\"white\",\"text\":\"" +
+        "Mem: {pused}2d% {used}03d/{max}03dMB | Allocated: {pallocated}2d% {total}03dMB\"}", "Format of infoMemoryUsage"),
+        LOADED_CHUNKS_COUNT_SERVER_FORMAT= new ConfigString("infoLoadedChunksCountServerFormat", "{\"color\":\"white\",\"text\":\"" +
+        "Server: {chunks}d / {total}d - Client: {client}\"}", "Format of infoLoadedChunksCount when playing singleplayer"),
+        LOADED_CHUNKS_COUNT_CLIENT_FORMAT= new ConfigString("infoLoadedChunksCountClientFormat", "{\"color\":\"white\",\"text\":\"" +
+        "{client}\"}", "Format of infoLoadedChunksCount when playing on a server"),
+        PARTICLE_COUNT_FORMAT            = new ConfigString("infoParticleCountFormat", "{\"color\":\"white\",\"text\":\"" +
+        "P: {p}\"}", "Format of infoParticleCount"),
+        PING_FORMAT                      = new ConfigString("infoPingFormat", "{\"color\":\"white\",\"text\":\"" +
+        "Ping: {ping}dms\"}", "Format of infoPing"),
+        REGION_FILE_FORMAT               = new ConfigString("infoRegionFileFormat", "{\"color\":\"white\",\"text\":\"" +
+        " / Region: r.{x}d.{z}d\"}", "Format of infoRegionFile"),
+        ROTATION_PITCH_FORMAT            = new ConfigString("infoRotationPitchFormat", "{\"color\":\"white\",\"text\":\"" +
+        " / Pitch: {pitch}.1f\"}", "Format of infoRotationPitch"),
+        ROTATION_YAW_FORMAT              = new ConfigString("infoRotationYawFormat", "{\"color\":\"white\",\"text\":\"" +
+        "Yaw: {yaw}.1f\"}", "Format of infoRotationYaw"),
+        SERVER_TPS_VANILLA_FORMAT        = new ConfigString("infoServerTPSVanillaFormat", "{\"color\":\"white\",\"text\":\"" +
+        "Server TPS: {preTps}{tps}.1f{rst} (MSPT [est]: {preMspt}{mspt}.1f{rst})\"}", "Format of infoServerTPS for vanilla servers"),
+        SERVER_TPS_CARPET_FORMAT         = new ConfigString("infoServerTPSCarpetFormat", "{\"color\":\"white\",\"text\":\"" +
+        "Server TPS: {preTps}{tps}.1f{rst} MSPT: {preMspt}{mspt}.1f{rst}\"}", "Format of infoServerTPS for carpet servers"),
+        SERVER_TPS_NULL_FORMAT           = new ConfigString("infoServerTPSNullFormat", "{\"color\":\"white\",\"text\":\"" +
+        "Server TPS: <no valid data>\"}", "Format of infoServerTPS when info is unavailable"),
+        SLIME_CHUNK_FORMAT               = new ConfigString("infoSlimeChunkFormat", "[{\"color\":\"white\",\"text\":\"" +
+        "Slime chunk: \"}, {result}]", "Format of infoSlimeChunk"),
+        SLIME_CHUNK_YES_FORMAT           = new ConfigString("infoSlimeChunkYesFormat", "{\"color\":\"green\",\"text\":\"" +
+        "YES\"}", "Format of the infoSlimeChunk result when it's positive"),
+        SLIME_CHUNK_NO_FORMAT            = new ConfigString("infoSlimeChunkNoFormat", "{\"color\":\"red\",\"text\":\"" +
+        "NO\"}", "Format of the infoSlimeChunk result when it's negative"),
+        SLIME_CHUNK_NO_SEED_FORMAT       = new ConfigString("infoSlimeChunkNoSeedFormat", "{\"color\":\"white\",\"text\":\"" +
+        "Slime chunk: <world seed not known>\"}", "Format of infoSlimeChunk when there's no seed"),
+        SPEED_FORMAT                     = new ConfigString("infoSpeedFormat", "{\"color\":\"white\",\"text\":\"" +
+        " / Speed: {speed}.3f m/s\"}", "Format of infoSpeed"),
+        SPEED_AXIS_FORMAT                = new ConfigString("infoSpeedAxisFormat", "{\"color\":\"white\",\"text\":\"" +
+        "Speed: x: {x}.3f y: {y}.3f z: {z}.3f m/s\"}", "Format of infoSpeedAxis"),
+        TILE_ENTITIES_FORMAT             = new ConfigString("infoTileEntitiesFormat", "{\"color\":\"white\",\"text\":\"" +
+        "Client world TE - L: {loaded}d, T: {ticking}d\"}", "Format of infoTileEntities"),
+        TIME_DAY_MODULO_FORMAT           = new ConfigString("infoTimeDayModuloFormat", "{\"color\":\"white\",\"text\":\"" +
+        "Day time % {mod}d: {time}5d\"}", "Format of infoTimeDayModulo"),
+        TIME_REAL_FORMAT                 = new ConfigString("infoTimeIRLFormat", "{\"color\":\"white\",\"text\":\"" +
+        "{yyyy}-{MM}-{dd} {HH}:{mm}:{ss}\"}", "The format string for real time, see the Java SimpleDateFormat\nclass for the format patterns, if needed."),
+        TIME_TOTAL_MODULO_FORMAT         = new ConfigString("infoTimeTotalModuloFormat", "{\"color\":\"white\",\"text\":\"" +
+        "Total time % {mod}d: {time}5d\"}", "Format of infoTimeTotalModulo"),
+        TIME_WORLD_FORMAT                = new ConfigString("infoTimeWorldFormat", "{\"color\":\"white\",\"text\":\"" +
+        "World time: {time}5d - total: {total}d\"}", "Format of infoTimeWorld"),
+        TIME_WORLD_FORMATTED_FORMAT      = new ConfigString("infoWorldTimeFormattedFormat", "{\"color\":\"white\",\"text\":\"" +
+        "MC time: (day {day}d) {hour}02d:{min}02d:xx\"}", "The format string for the Minecraft time.\nThe supported placeholders are: {DAY_1}, {DAY}, {HOUR}, {MIN}, {SEC}.\n{DAY_1} starts the day counter from 1, {DAY} starts from 0.");
+
+      public static final ImmutableList<IConfigValue> OPTIONS = ImmutableList.of(
+        BEE_COUNT_FORMAT,
+        BIOME_FORMAT,
+        BIOME_REG_NAME_FORMAT,
+        BLOCK_BREAK_SPEED_FORMAT,
+        BLOCK_IN_CHUNK_FORMAT,
+        BLOCK_POS_FORMAT,
+        BLOCK_PROPS_BOOLEAN_TRUE_FORMAT,
+        BLOCK_PROPS_BOOLEAN_FALSE_FORMAT,
+        BLOCK_PROPS_DIRECTION_FORMAT,
+        BLOCK_PROPS_HEADING_FORMAT,
+        BLOCK_PROPS_INT_FORMAT,
+        BLOCK_PROPS_SEPARATOR_FORMAT,
+        BLOCK_PROPS_STRING_FORMAT,
+        CHUNK_POS_FORMAT,
+        CHUNK_SECTIONS_FORMAT,
+        CHUNK_SECTIONS_FULL_FORMAT,
+        CHUNK_UPDATES_FORMAT,
+        COORDINATES_FORMAT,
+        DIFFICULTY_FORMAT,
+        DIMENSION_FORMAT,
+        DISTANCE_FORMAT,
+        ENTITIES_CLIENT_FORMAT,
+        ENTITIES_SERVER_FORMAT,
+        ENTITY_REG_NAME_FORMAT,
+        FACING_FORMAT,
+        FACING_PX_FORMAT,
+        FACING_NX_FORMAT,
+        FACING_PZ_FORMAT,
+        FACING_NZ_FORMAT,
+        FPS_FORMAT,
+        HONEY_LEVEL_FORMAT,
+        LIGHT_LEVEL_CLIENT_FORMAT,
+        LIGHT_LEVEL_SERVER_FORMAT,
+        LOOKING_AT_BLOCK_FORMAT,
+        LOOKING_AT_BLOCK_CHUNK_FORMAT,
+        LOOKING_AT_ENTITY_FORMAT,
+        LOOKING_AT_ENTITY_LIVING_FORMAT,
+        MEMORY_USAGE_FORMAT,
+        LOADED_CHUNKS_COUNT_SERVER_FORMAT,
+        LOADED_CHUNKS_COUNT_CLIENT_FORMAT,
+        PARTICLE_COUNT_FORMAT,
+        PING_FORMAT,
+        REGION_FILE_FORMAT,
+        ROTATION_PITCH_FORMAT,
+        ROTATION_YAW_FORMAT,
+        SERVER_TPS_VANILLA_FORMAT,
+        SERVER_TPS_CARPET_FORMAT,
+        SERVER_TPS_NULL_FORMAT,
+        SLIME_CHUNK_FORMAT,
+        SLIME_CHUNK_YES_FORMAT,
+        SLIME_CHUNK_NO_FORMAT,
+        SPEED_FORMAT,
+        SPEED_AXIS_FORMAT,
+        TILE_ENTITIES_FORMAT,
+        TIME_DAY_MODULO_FORMAT,
+        TIME_REAL_FORMAT,
+        TIME_TOTAL_MODULO_FORMAT,
+        TIME_WORLD_FORMAT,
+        TIME_WORLD_FORMATTED_FORMAT
+      );
     }
 
     public static void loadFromFile()
@@ -219,6 +445,7 @@ public class Configs implements IConfigHandler
 
                 ConfigUtils.readConfigBase(root, "Colors", Configs.Colors.OPTIONS);
                 ConfigUtils.readConfigBase(root, "Generic", Configs.Generic.OPTIONS);
+                ConfigUtils.readConfigBase(root, "Formats", Configs.Formats.OPTIONS);
                 ConfigUtils.readHotkeyToggleOptions(root, "InfoHotkeys", "InfoTypeToggles", ImmutableList.copyOf(InfoToggle.values()));
                 ConfigUtils.readHotkeyToggleOptions(root, "RendererHotkeys", "RendererToggles", ImmutableList.copyOf(RendererToggle.values()));
                 ConfigUtils.readConfigBase(root, "StructureColors", StructureToggle.getColorConfigs());
@@ -252,6 +479,7 @@ public class Configs implements IConfigHandler
 
             ConfigUtils.writeConfigBase(root, "Colors", Configs.Colors.OPTIONS);
             ConfigUtils.writeConfigBase(root, "Generic", Configs.Generic.OPTIONS);
+            ConfigUtils.writeConfigBase(root, "Formats", Configs.Formats.OPTIONS);
             ConfigUtils.writeHotkeyToggleOptions(root, "InfoHotkeys", "InfoTypeToggles", ImmutableList.copyOf(InfoToggle.values()));
             ConfigUtils.writeHotkeyToggleOptions(root, "RendererHotkeys", "RendererToggles", ImmutableList.copyOf(RendererToggle.values()));
             ConfigUtils.writeConfigBase(root, "StructureColors", StructureToggle.getColorConfigs());

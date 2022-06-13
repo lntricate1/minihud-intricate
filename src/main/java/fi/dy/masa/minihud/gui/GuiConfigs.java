@@ -82,14 +82,16 @@ public class GuiConfigs extends GuiConfigsBase
     {
         ConfigGuiTab tab = GuiConfigs.tab;
 
-        if (tab == ConfigGuiTab.GENERIC || tab == ConfigGuiTab.STRUCTURES)
+        switch(tab)
         {
+          case FORMATS:
+            return 400;
+          case GENERIC:
+          case STRUCTURES:
             return 200;
-        }
-        else if (tab == ConfigGuiTab.COLORS ||
-                 tab == ConfigGuiTab.INFO_LINE_ORDER ||
-                 tab == ConfigGuiTab.INFO_TOGGLES)
-        {
+          case COLORS:
+          case INFO_LINE_ORDER:
+          case INFO_TOGGLES:
             return 100;
         }
 
@@ -119,6 +121,10 @@ public class GuiConfigs extends GuiConfigsBase
         else if (tab == ConfigGuiTab.INFO_TOGGLES)
         {
             configs = ConfigUtils.createConfigWrapperForType(ConfigType.BOOLEAN, ImmutableList.copyOf(InfoToggle.values()));
+        }
+        else if (tab == ConfigGuiTab.FORMATS)
+        {
+            configs = Configs.Formats.OPTIONS;
         }
         else if (tab == ConfigGuiTab.INFO_LINE_ORDER)
         {
@@ -181,6 +187,7 @@ public class GuiConfigs extends GuiConfigsBase
     {
         GENERIC             ("minihud.gui.button.config_gui.generic"),
         COLORS              ("minihud.gui.button.config_gui.colors"),
+        FORMATS             ("minihud.gui.button.config_gui.formats"),
         INFO_TOGGLES        ("minihud.gui.button.config_gui.info_toggles"),
         INFO_LINE_ORDER     ("minihud.gui.button.config_gui.info_line_order"),
         INFO_HOTKEYS        ("minihud.gui.button.config_gui.info_hotkeys"),
