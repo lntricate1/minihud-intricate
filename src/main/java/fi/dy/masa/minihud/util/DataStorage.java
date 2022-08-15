@@ -35,6 +35,7 @@ import fi.dy.masa.malilib.util.InfoUtils;
 import fi.dy.masa.malilib.util.JsonUtils;
 import fi.dy.masa.malilib.util.PositionUtils;
 import fi.dy.masa.minihud.MiniHUD;
+import fi.dy.masa.minihud.config.Configs;
 import fi.dy.masa.minihud.config.RendererToggle;
 import fi.dy.masa.minihud.network.StructurePacketHandlerCarpet;
 import fi.dy.masa.minihud.network.StructurePacketHandlerServux;
@@ -70,7 +71,7 @@ public class DataStorage
     private double serverMSPT;
     private BlockPos worldSpawn = BlockPos.ORIGIN;
     private Vec3d distanceReferencePoint = Vec3d.ZERO;
-    private int[] blockBreakCounter = new int[100];
+    private final int[] blockBreakCounter = new int[100];
     private final ArrayListMultimap<StructureType, StructureData> structures = ArrayListMultimap.create();
     private final MinecraftClient mc = MinecraftClient.getInstance();
 
@@ -90,7 +91,6 @@ public class DataStorage
             MiniHUD.printDebug("DataStorage#reset() - dimension change or log-in");
         }
 
-        this.worldSeedValid = false;
         this.serverTPSValid = false;
         this.hasSyncedTime = false;
         this.carpetServer = false;
@@ -101,13 +101,18 @@ public class DataStorage
 
         this.lastStructureUpdatePos = null;
         this.structures.clear();
-        this.worldSeed = 0;
         this.worldSpawn = BlockPos.ORIGIN;
 
         StructurePacketHandlerCarpet.INSTANCE.reset();
         StructurePacketHandlerServux.INSTANCE.reset();
         ShapeManager.INSTANCE.clear();
         OverlayRendererLightLevel.reset();
+
+        if (isLogout || Configs.Generic.DONT_RESET_SEED_ON_DIMENSION_CHANGE.getBooleanValue() == false)
+        {
+            this.worldSeedValid = false;
+            this.worldSeed = 0;
+        }
 
         if (isLogout)
         {
@@ -291,23 +296,30 @@ public class DataStorage
     {
         String[] parts = message.split(" ");
 
-        if (parts[0].equals("minihud-seed"))
+        if (parts[0].equals("minihud-seed") || parts[0].equals("/minihud-seed"))
         {
             if (parts.length == 2)
             {
                 try
                 {
                     this.setWorldSeed(Long.parseLong(parts[1]));
-                    InfoUtils.printActionbarMessage("minihud.message.seed_set", Long.valueOf(this.worldSeed));
+                    InfoUtils.printActionbarMessage("minihud.message.seed_set", this.worldSeed);
                 }
                 catch (NumberFormatException e)
                 {
                     InfoUtils.printActionbarMessage("minihud.message.error.invalid_seed");
                 }
             }
-            else if (this.worldSeedValid && parts.length == 1)
+            else if (parts.length == 1)
             {
-                InfoUtils.printActionbarMessage("minihud.message.seed_set", Long.valueOf(this.worldSeed));
+                if (this.worldSeedValid)
+                {
+                    InfoUtils.printActionbarMessage("minihud.message.seed_is", this.worldSeed);
+                }
+                else
+                {
+                    InfoUtils.printActionbarMessage("minihud.message.no_seed");
+                }
             }
 
             return true;
@@ -423,9 +435,14 @@ public class DataStorage
     {
         ArrayListMultimap<StructureType, StructureData> copy = ArrayListMultimap.create();
 
+        if (RendererToggle.OVERLAY_STRUCTURE_MAIN_TOGGLE.getBooleanValue() == false)
+        {
+            return copy;
+        }
+
         synchronized (this.structures)
         {
-            for (StructureType type : StructureType.values())
+            for (StructureType type : StructureType.VALUES)
             {
                 Collection<StructureData> values = this.structures.get(type);
 
@@ -451,11 +468,14 @@ public class DataStorage
             {
                 if (this.mc.isIntegratedServerRunning())
                 {
-                    BlockPos playerPos = PositionUtils.getEntityBlockPos(this.mc.player);
-
-                    if (this.structuresNeedUpdating(playerPos, 32))
+                    if (RendererToggle.OVERLAY_STRUCTURE_MAIN_TOGGLE.getBooleanValue())
                     {
-                        this.updateStructureDataFromIntegratedServer(playerPos);
+                        BlockPos playerPos = PositionUtils.getEntityBlockPos(this.mc.player);
+
+                        if (this.structuresNeedUpdating(playerPos, 32))
+                        {
+                            this.updateStructureDataFromIntegratedServer(playerPos);
+                        }
                     }
                 }
                 else if (this.hasStructureDataFromServer)
@@ -624,9 +644,9 @@ public class DataStorage
                         {
                             StructureStart<?> start = chunk.getStructureStart(type.getFeature());
 
-                            if (start != null)
+                            if (start != null && start.hasChildren())
                             {
-                                if (MiscUtils.isStructureWithinRange(start.getBoundingBox(), playerPos, maxChunkRange << 4))
+                                if (MiscUtils.isStructureWithinRange(start.setBoundingBoxFromChildren(), playerPos, maxChunkRange << 4))
                                 {
                                     this.structures.put(type, StructureData.fromStructureStart(type, start));
                                 }

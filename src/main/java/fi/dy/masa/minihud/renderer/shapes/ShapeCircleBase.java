@@ -8,10 +8,12 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.render.BufferBuilder;
+import net.minecraft.client.render.VertexFormat;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Matrix4f;
 import net.minecraft.util.math.Vec3d;
 import fi.dy.masa.malilib.gui.GuiBase;
 import fi.dy.masa.malilib.util.BlockSnap;
@@ -141,20 +143,20 @@ public abstract class ShapeCircleBase extends ShapeBase
     @Override
     public void allocateGlResources()
     {
-        this.allocateBuffer(GL11.GL_QUADS);
+        this.allocateBuffer(VertexFormat.DrawMode.QUADS);
     }
 
     @Override
-    public void draw(MatrixStack matrixStack)
+    public void draw(MatrixStack matrixStack, Matrix4f projMatrix)
     {
         this.preRender();
 
-        this.renderObjects.get(0).draw(matrixStack);
+        this.renderObjects.get(0).draw(matrixStack, projMatrix);
 
         // Render the lines as quads with glPolygonMode(GL_LINE)
         RenderSystem.polygonMode(GL11.GL_FRONT_AND_BACK, GL11.GL_LINE);
         RenderSystem.disableBlend();
-        this.renderObjects.get(0).draw(matrixStack);
+        this.renderObjects.get(0).draw(matrixStack, projMatrix);
         RenderSystem.polygonMode(GL11.GL_FRONT_AND_BACK, GL11.GL_FILL);
         RenderSystem.enableBlend();
     }

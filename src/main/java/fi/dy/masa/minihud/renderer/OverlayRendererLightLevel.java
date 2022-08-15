@@ -2,11 +2,12 @@ package fi.dy.masa.minihud.renderer;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.lwjgl.opengl.GL11;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.BufferBuilder;
+import net.minecraft.client.render.GameRenderer;
+import net.minecraft.client.render.VertexFormat;
 import net.minecraft.client.render.VertexFormats;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
@@ -113,8 +114,8 @@ public class OverlayRendererLightLevel extends OverlayRendererBase
     @Override
     public void allocateGlResources()
     {
-        this.allocateBuffer(GL11.GL_QUADS, VertexFormats.POSITION_TEXTURE_COLOR);
-        this.allocateBuffer(GL11.GL_LINES, VertexFormats.POSITION_COLOR);
+        this.allocateBuffer(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_TEXTURE_COLOR, GameRenderer::getPositionTexColorShader);
+        this.allocateBuffer(VertexFormat.DrawMode.DEBUG_LINES, VertexFormats.POSITION_COLOR, GameRenderer::getPositionColorShader);
     }
 
     private void renderLightLevels(Vec3d cameraPos, MinecraftClient mc)
@@ -325,7 +326,7 @@ public class OverlayRendererLightLevel extends OverlayRendererBase
         final int maxCX = (maxX >> 4);
         final int maxCZ = (maxZ >> 4);
         LightingProvider lightingProvider = world.getChunkManager().getLightingProvider();
-        final int worldHeight = world.getHeight();
+        final int worldTopHeight = world.getTopY();
 
         for (int cx = minCX; cx <= maxCX; ++cx)
         {
@@ -342,7 +343,7 @@ public class OverlayRendererLightLevel extends OverlayRendererBase
                 {
                     for (int z = startZ; z <= endZ; ++z)
                     {
-                        final int startY = Math.max(minY, 0);
+                        final int startY = Math.max(minY, world.getBottomY());
                         final int endY   = Math.min(maxY, chunk.getHighestNonEmptySectionYOffset() + 15 + 1);
 
                         for (int y = startY; y <= endY; ++y)
@@ -350,8 +351,8 @@ public class OverlayRendererLightLevel extends OverlayRendererBase
                             if (this.canSpawnAtWrapper(x, y, z, chunk, world))
                             {
                                 BlockPos pos = new BlockPos(x, y, z);
-                                int block = y < worldHeight ? lightingProvider.get(LightType.BLOCK).getLightLevel(pos) : 0;
-                                int sky   = y < worldHeight ? lightingProvider.get(LightType.SKY).getLightLevel(pos) : 15;
+                                int block = y < worldTopHeight ? lightingProvider.get(LightType.BLOCK).getLightLevel(pos) : 0;
+                                int sky   = y < worldTopHeight ? lightingProvider.get(LightType.SKY).getLightLevel(pos) : 15;
 
                                 this.lightInfos.add(new LightLevelInfo(pos, block, sky));
 

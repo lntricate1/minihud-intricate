@@ -1,8 +1,9 @@
 package fi.dy.masa.minihud.util;
 
-import java.util.EnumSet;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
+import io.netty.buffer.Unpooled;
 import com.google.common.collect.MapMaker;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.MinecraftClient;
@@ -11,6 +12,7 @@ import net.minecraft.client.render.debug.DebugRenderer;
 import net.minecraft.client.render.debug.NeighborUpdateDebugRenderer;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.ai.pathing.EntityNavigation;
 import net.minecraft.entity.ai.pathing.Path;
 import net.minecraft.entity.ai.pathing.PathNode;
@@ -19,14 +21,18 @@ import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.packet.s2c.play.CustomPayloadS2CPacket;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.text.LiteralText;
+import net.minecraft.text.TranslatableText;
+import net.minecraft.util.Formatting;
+import net.minecraft.util.TypeFilter;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
+import fi.dy.masa.malilib.config.IConfigBoolean;
 import fi.dy.masa.minihud.config.Configs;
 import fi.dy.masa.minihud.config.RendererToggle;
 import fi.dy.masa.minihud.mixin.IMixinEntityNavigation;
-import io.netty.buffer.Unpooled;
 
 public class DebugInfoUtils
 {
@@ -99,8 +105,8 @@ public class DebugInfoUtils
 
             writeBlockPosToBuffer(buf, target);
 
-            PathNode[] openSet = path.method_22880();
-            PathNode[] closedSet = path.method_22881();
+            PathNode[] openSet = path.getDebugNodes();
+            PathNode[] closedSet = path.getDebugSecondNodes();
             int length = path.getLength();
 
             buf.writeInt(length);
@@ -127,20 +133,14 @@ public class DebugInfoUtils
         }
     }
 
-    public static void onNeighborNotify(World world, BlockPos pos, EnumSet<Direction> notifiedSides)
+    public static void onNeighborUpdate(World world, BlockPos pos)
     {
         // This will only work in single player...
         // We are catching updates from the server world, and adding them to the debug renderer directly
         if (neighborUpdateEnabled && world.isClient == false)
         {
-            final long time = world.getTime();
-
-            MinecraftClient.getInstance().execute(() -> {
-                for (Direction side : notifiedSides)
-                {
-                    ((NeighborUpdateDebugRenderer) MinecraftClient.getInstance().debugRenderer.neighborUpdateDebugRenderer).addNeighborUpdate(time, pos.offset(side));
-                }
-            });
+            MinecraftClient mc = MinecraftClient.getInstance();
+            mc.execute(() -> ((NeighborUpdateDebugRenderer) mc.debugRenderer.neighborUpdateDebugRenderer).addNeighborUpdate(world.getTime(), pos.toImmutable()));
         }
     }
 
@@ -156,11 +156,12 @@ public class DebugInfoUtils
 
             if (world != null)
             {
-                Predicate<Entity> predicate = (entity) -> (entity instanceof MobEntity) && entity.isAlive();
+                TypeFilter<Entity, MobEntity> filter = TypeFilter.instanceOf(MobEntity.class);
+                Predicate<MobEntity> predicate = LivingEntity::isAlive;
 
-                for (Entity entity : world.getEntitiesByType(null, predicate))
+                for (MobEntity entity : world.getEntitiesByType(filter, predicate))
                 {
-                    EntityNavigation navigator = ((MobEntity) entity).getNavigation();
+                    EntityNavigation navigator = entity.getNavigation();
 
                     if (navigator != null && isAnyPlayerWithinRange(world, entity, 64))
                     {
@@ -176,7 +177,7 @@ public class DebugInfoUtils
 
                         if (old == null || isSamepath == false || old.getCurrentNodeIndex() != path.getCurrentNodeIndex())
                         {
-                            final int id = entity.getEntityId();
+                            final int id = entity.getId();
                             final float maxDistance = Configs.Generic.DEBUG_RENDERER_PATH_MAX_DIST.getBooleanValue() ? ((IMixinEntityNavigation) navigator).getMaxDistanceToWaypoint() : 0F;
 
                             DebugInfoUtils.sendPacketDebugPath(server, id, path, maxDistance);
@@ -200,13 +201,14 @@ public class DebugInfoUtils
 
     private static boolean isAnyPlayerWithinRange(ServerWorld world, Entity entity, double range)
     {
-        for (int i = 0; i < world.getPlayers().size(); ++i)
-        {
-            PlayerEntity player = world.getPlayers().get(i);
+        List<ServerPlayerEntity> players = world.getPlayers();
+        double squaredRange = range * range;
 
+        for (PlayerEntity player : players)
+        {
             double distSq = player.squaredDistanceTo(entity.getX(), entity.getY(), entity.getZ());
 
-            if (range < 0.0D || distSq < range * range)
+            if (range < 0.0 || distSq < squaredRange)
             {
                 return true;
             }
@@ -215,7 +217,7 @@ public class DebugInfoUtils
         return false;
     }
 
-    public static void toggleDebugRenderer(RendererToggle config)
+    public static void toggleDebugRenderer(IConfigBoolean config)
     {
         if (config == RendererToggle.DEBUG_NEIGHBOR_UPDATES)
         {
@@ -225,6 +227,11 @@ public class DebugInfoUtils
         {
             pathfindingEnabled = config.getBooleanValue();
         }
+        else if (config == RendererToggle.DEBUG_CHUNK_BORDER)
+        {
+            boolean enabled = MinecraftClient.getInstance().debugRenderer.toggleShowChunkBorder();
+            debugWarn(enabled ? "debug.chunk_boundaries.on" : "debug.chunk_boundaries.off");
+        }
         else if (config == RendererToggle.DEBUG_CHUNK_INFO)
         {
             MinecraftClient.getInstance().debugChunkInfo = config.getBooleanValue();
@@ -233,6 +240,14 @@ public class DebugInfoUtils
         {
             MinecraftClient.getInstance().debugChunkOcclusion = config.getBooleanValue();
         }
+    }
+
+    private static void debugWarn(String key, Object... args)
+    {
+        MinecraftClient.getInstance().inGameHud.getChatHud().addMessage((new LiteralText(""))
+                .append((new TranslatableText("debug.prefix")).formatted(Formatting.YELLOW, Formatting.BOLD))
+                .append(" ")
+                .append((new TranslatableText(key, args))));
     }
 
     public static void renderVanillaDebug(MatrixStack matrixStack, VertexConsumerProvider.Immediate vtx,

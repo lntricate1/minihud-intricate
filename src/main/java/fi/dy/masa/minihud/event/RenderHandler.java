@@ -12,12 +12,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nullable;
-import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.systems.RenderSystem;//Maybe changes
 
-import org.graalvm.compiler.code.DataSection;
-
+import org.graalvm.compiler.code.DataSection;//Maybe changes
 import net.minecraft.block.BeehiveBlock;
 import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.AbstractFurnaceBlockEntity;
 import net.minecraft.block.entity.BeehiveBlockEntity;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.client.font.TextRenderer;
@@ -27,6 +27,7 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.passive.HorseBaseEntity;
 import net.minecraft.item.FilledMapItem;
 import net.minecraft.item.ItemStack;
 import net.minecraft.text.Text;
@@ -45,6 +46,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Matrix4f;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.registry.Registry;
 import net.minecraft.world.LightType;
@@ -69,6 +71,7 @@ import fi.dy.masa.minihud.mixin.IMixinServerWorld;
 import fi.dy.masa.minihud.mixin.IMixinWorldRenderer;
 import fi.dy.masa.minihud.renderer.OverlayRenderer;
 import fi.dy.masa.minihud.util.DataStorage;
+import fi.dy.masa.minihud.util.IServerEntityManager;
 import fi.dy.masa.minihud.util.MiscUtils;
 
 import static java.lang.String.format;
@@ -112,7 +115,7 @@ public class RenderHandler implements IRenderer
     {
         if (Configs.Generic.FIX_VANILLA_DEBUG_RENDERERS.getBooleanValue())
         {
-            RenderSystem.disableLighting();
+            //RenderSystem.disableLighting();
             //RenderUtils.color(1, 1, 1, 1);
             //OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, 240f, 240f);
         }
@@ -182,7 +185,7 @@ public class RenderHandler implements IRenderer
     }
 
     @Override
-    public void onRenderGameOverlayPost(float partialTicks, MatrixStack matrixStack)
+    public void onRenderGameOverlayPost(MatrixStack matrixStack)
     {
         if (Configs.Generic.ENABLED.getBooleanValue() == false)
         {
@@ -244,12 +247,12 @@ public class RenderHandler implements IRenderer
     }
 
     @Override
-    public void onRenderWorldLast(float partialTicks, net.minecraft.client.util.math.MatrixStack matrixStack)
+    public void onRenderWorldLast(MatrixStack matrixStack, Matrix4f projMatrix)
     {
         if (Configs.Generic.ENABLED.getBooleanValue() &&
             this.mc.world != null && this.mc.player != null && this.mc.options.hudHidden == false)
         {
-            OverlayRenderer.renderOverlays(matrixStack, this.mc, partialTicks);
+            OverlayRenderer.renderOverlays(matrixStack, projMatrix, this.mc);
         }
     }
 
@@ -383,9 +386,13 @@ public class RenderHandler implements IRenderer
         MinecraftClient mc = this.mc;
         Entity entity = mc.getCameraEntity();
         World world = entity.getEntityWorld();
-        double y = entity.getBoundingBox().minY;
+        double y = entity.getY();
         BlockPos pos = new BlockPos(entity.getX(), y, entity.getZ());
         ChunkPos chunkPos = new ChunkPos(pos);
+
+        @SuppressWarnings("deprecation")
+        boolean isChunkLoaded = mc.world.isChunkLoaded(pos);
+        if (isChunkLoaded == false) return;
 
         switch(type)
         {
@@ -554,6 +561,7 @@ public class RenderHandler implements IRenderer
             break;
 
           case COORDINATES:
+          //ADD case COORDINATES_SCALED:
           case DIMENSION:
             // Don't add the same line multiple times
             if (this.addedTypes.contains(InfoToggle.COORDINATES) || this.addedTypes.contains(InfoToggle.DIMENSION))
@@ -645,7 +653,7 @@ public class RenderHandler implements IRenderer
             Vec3d ref = DataStorage.getInstance().getDistanceReferencePoint();
             this.addLine(format(format(format(format(format(format(format(applyColors(Configs.Formats.DISTANCE_FORMAT.getStringValue())
               .replace("%", "\0")
-              .replace("{d}", "%"), MathHelper.sqrt(ref.squaredDistanceTo(entity.getX(), entity.getY(), entity.getZ())))
+              .replace("{d}", "%"), Math.sqrt(ref.squaredDistanceTo(entity.getX(), entity.getY(), entity.getZ())))
               .replace("{dx}", "%"), entity.getX() - ref.x)
               .replace("{dy}", "%"), entity.getY() - ref.y)
               .replace("{dz}", "%"), entity.getZ() - ref.z)
@@ -674,36 +682,32 @@ public class RenderHandler implements IRenderer
           case LIGHT_LEVEL_SERVER:
             if(this.addedTypes.contains(InfoToggle.LIGHT_LEVEL_CLIENT) || this.addedTypes.contains(InfoToggle.LIGHT_LEVEL_SERVER))
               return;
-            // Prevent a crash when outside of world
-            if (pos.getY() >= 0 && pos.getY() < 256 && mc.world.isChunkLoaded(pos))
+            WorldChunk clientChunk = this.getClientChunk(chunkPos);
+            if (clientChunk.isEmpty() == false)
             {
-              WorldChunk clientChunk = this.getClientChunk(chunkPos);
-              if (clientChunk.isEmpty() == false)
+              if(InfoToggle.LIGHT_LEVEL_CLIENT.getBooleanValue())
               {
-                if(InfoToggle.LIGHT_LEVEL_CLIENT.getBooleanValue())
+                LightingProvider lightingProvider = world.getChunkManager().getLightingProvider();
+                this.addLine(format(format(format(applyColors(Configs.Formats.LIGHT_LEVEL_CLIENT_FORMAT.getStringValue())
+                  .replace("%", "\0")
+                  .replace("{light}", "%"), lightingProvider.getLight(pos, 0))
+                  .replace("{block}", "%"), lightingProvider.get(LightType.BLOCK).getLightLevel(pos))
+                  .replace("{sky}", "%"), lightingProvider.get(LightType.SKY).getLightLevel(pos)).replace("\0", "%"));
+                this.addedTypes.add(InfoToggle.LIGHT_LEVEL_CLIENT);
+              }
+              if(InfoToggle.LIGHT_LEVEL_SERVER.getBooleanValue())
+              {
+                World bestWorld = WorldUtils.getBestWorld(mc);
+                WorldChunk serverChunk = this.getChunk(chunkPos);
+                if (serverChunk != null && serverChunk != clientChunk)
                 {
-                  LightingProvider lightingProvider = world.getChunkManager().getLightingProvider();
-                  this.addLine(format(format(format(applyColors(Configs.Formats.LIGHT_LEVEL_CLIENT_FORMAT.getStringValue())
+                  LightingProvider lightingProvider = bestWorld.getChunkManager().getLightingProvider();
+                  this.addLine(format(format(format(applyColors(Configs.Formats.LIGHT_LEVEL_SERVER_FORMAT.getStringValue())
                     .replace("%", "\0")
                     .replace("{light}", "%"), lightingProvider.getLight(pos, 0))
                     .replace("{block}", "%"), lightingProvider.get(LightType.BLOCK).getLightLevel(pos))
                     .replace("{sky}", "%"), lightingProvider.get(LightType.SKY).getLightLevel(pos)).replace("\0", "%"));
-                  this.addedTypes.add(InfoToggle.LIGHT_LEVEL_CLIENT);
-                }
-                if(InfoToggle.LIGHT_LEVEL_SERVER.getBooleanValue())
-                {
-                  World bestWorld = WorldUtils.getBestWorld(mc);
-                  WorldChunk serverChunk = this.getChunk(chunkPos);
-                  if (serverChunk != null && serverChunk != clientChunk)
-                  {
-                    LightingProvider lightingProvider = bestWorld.getChunkManager().getLightingProvider();
-                    this.addLine(format(format(format(applyColors(Configs.Formats.LIGHT_LEVEL_SERVER_FORMAT.getStringValue())
-                      .replace("%", "\0")
-                      .replace("{light}", "%"), lightingProvider.getLight(pos, 0))
-                      .replace("{block}", "%"), lightingProvider.get(LightType.BLOCK).getLightLevel(pos))
-                      .replace("{sky}", "%"), lightingProvider.get(LightType.SKY).getLightLevel(pos)).replace("\0", "%"));
-                    this.addedTypes.add(InfoToggle.LIGHT_LEVEL_SERVER);
-                  }
+                  this.addedTypes.add(InfoToggle.LIGHT_LEVEL_SERVER);
                 }
               }
             }
@@ -716,6 +720,8 @@ public class RenderHandler implements IRenderer
               this.addLine(applyColors(Configs.Formats.BEE_COUNT_FORMAT.getStringValue())
                 .replace("{bees}", Integer.toString(((BeehiveBlockEntity) be).getBeeCount())));
             break;
+            
+            //ADD FURNACE XP
 
           case HONEY_LEVEL:
             BlockState state = this.getTargetedBlock(mc);
@@ -726,7 +732,7 @@ public class RenderHandler implements IRenderer
                 .replace("{honey}", Integer.toString(BeehiveBlockEntity.getHoneyLevel(state))));
             }
             break;
-
+//ADD HONSE
           case ROTATION_YAW:
           case ROTATION_PITCH:
           case SPEED:
@@ -741,7 +747,7 @@ public class RenderHandler implements IRenderer
             if(hasOther1)
             {
               str3.append(format(applyColors(Configs.Formats.ROTATION_YAW_FORMAT.getStringValue())
-                .replace("%", "\0").replace("{yaw}", "%"), MathHelper.wrapDegrees(entity.yaw)).replace("\0", "%"));
+                .replace("%", "\0").replace("{yaw}", "%"), MathHelper.wrapDegrees(entity.getYaw())).replace("\0", "%"));
               this.addedTypes.add(InfoToggle.ROTATION_YAW);
             }
 
@@ -749,7 +755,7 @@ public class RenderHandler implements IRenderer
             {
               if(hasOther1) str3.append(",");
               str3.append(format(applyColors(Configs.Formats.ROTATION_PITCH_FORMAT.getStringValue())
-                .replace("%", "\0").replace("{pitch}", "%"), MathHelper.wrapDegrees(entity.pitch)).replace("\0", "%"));
+                .replace("%", "\0").replace("{pitch}", "%"), MathHelper.wrapDegrees(entity.getPitch())).replace("\0", "%"));
               this.addedTypes.add(InfoToggle.ROTATION_PITCH);
               hasOther1 = true;
             }
@@ -768,6 +774,7 @@ public class RenderHandler implements IRenderer
             this.addLine(str3.append("]").toString());
             break;
 
+// ADD SPEED HV
           case SPEED_AXIS:
             this.addLine(format(format(format(applyColors(Configs.Formats.SPEED_AXIS_FORMAT.getStringValue())
               .replace("%", "\0")
@@ -791,7 +798,7 @@ public class RenderHandler implements IRenderer
             break;
 
           case LOADED_CHUNKS_COUNT:
-            String chunksClient = mc.world.getDebugString();
+            String chunksClient = mc.world.asString();
             World worldServer = WorldUtils.getBestWorld(mc);
 
             if (worldServer != null && worldServer != mc.world)
@@ -814,64 +821,54 @@ public class RenderHandler implements IRenderer
             break;
 
           case DIFFICULTY:
-            if (mc.world.isChunkLoaded(pos))
+            long chunkInhabitedTime = 0L;
+            float moonPhaseFactor = 0.0F;
+            WorldChunk serverChunk = this.getChunk(chunkPos);
+
+            if (serverChunk != null)
             {
-                long chunkInhabitedTime = 0L;
-                float moonPhaseFactor = 0.0F;
-                WorldChunk serverChunk = this.getChunk(chunkPos);
-
-                if (serverChunk != null)
-                {
-                    moonPhaseFactor = mc.world.getMoonSize();
-                    chunkInhabitedTime = serverChunk.getInhabitedTime();
-                }
-
-                LocalDifficulty diff = new LocalDifficulty(mc.world.getDifficulty(), mc.world.getTimeOfDay(), chunkInhabitedTime, moonPhaseFactor);
-                this.addLine(format(format(format(applyColors(Configs.Formats.DIFFICULTY_FORMAT.getStringValue())
-                  .replace("%", "\0")
-                  .replace("{local}", "%"), diff.getLocalDifficulty())
-                  .replace("{clamped}", "%"), diff.getClampedLocalDifficulty())
-                  .replace("{day}", "%"), mc.world.getTimeOfDay() / 24000L).replace("\0", "%"));
+                moonPhaseFactor = mc.world.getMoonSize();
+                chunkInhabitedTime = serverChunk.getInhabitedTime();
             }
+            LocalDifficulty diff = new LocalDifficulty(mc.world.getDifficulty(), mc.world.getTimeOfDay(), chunkInhabitedTime, moonPhaseFactor);
+            this.addLine(format(format(format(applyColors(Configs.Formats.DIFFICULTY_FORMAT.getStringValue())
+              .replace("%", "\0")
+              .replace("{local}", "%"), diff.getLocalDifficulty())
+              .replace("{clamped}", "%"), diff.getClampedLocalDifficulty())
+              .replace("{day}", "%"), mc.world.getTimeOfDay() / 24000L).replace("\0", "%"));
             break;
 
           case BIOME:
-            // Prevent a crash when outside of world
-            if (pos.getY() >= 0 && pos.getY() < 256 && mc.world.isChunkLoaded(pos))
-            {
-                WorldChunk clientChunk = this.getClientChunk(chunkPos);
+            WorldChunk clientChunk = this.getClientChunk(chunkPos);
 
-                if (clientChunk.isEmpty() == false)
-                {
-                    Biome biome = mc.world.getBiome(pos);
-                    Identifier id = mc.world.getRegistryManager().get(Registry.BIOME_KEY).getId(biome);
-                    this.addLine(applyColors(Configs.Formats.BIOME_FORMAT.getStringValue())
-                      .replace("{biome}", StringUtils.translate("biome." + id.toString().replace(":", "."))));
-                }
+            if (clientChunk.isEmpty() == false)
+            {
+                Biome biome = mc.world.getBiome(pos);
+                Identifier id = mc.world.getRegistryManager().get(Registry.BIOME_KEY).getId(biome);
+                this.addLine(applyColors(Configs.Formats.BIOME_FORMAT.getStringValue())
+                  .replace("{biome}", StringUtils.translate("biome." + id.toString().replace(":", "."))));
             }
             break;
 
           case BIOME_REG_NAME:
-            // Prevent a crash when outside of world
-            if (pos.getY() >= 0 && pos.getY() < 256 && mc.world.isChunkLoaded(pos))
-            {
-                WorldChunk clientChunk = this.getClientChunk(chunkPos);
+            WorldChunk clientChunk = this.getClientChunk(chunkPos);
 
-                if (clientChunk.isEmpty() == false)
-                {
-                    Biome biome = mc.world.getBiome(pos);
-                    Identifier rl = mc.world.getRegistryManager().get(Registry.BIOME_KEY).getId(biome);
-                    this.addLine(applyColors(Configs.Formats.BIOME_REG_NAME_FORMAT.getStringValue())
-                      .replace("{name}", rl != null ? rl.toString() : "?"));
-                }
+            if (clientChunk.isEmpty() == false)
+            {
+                Biome biome = mc.world.getBiome(pos);
+                Identifier rl = mc.world.getRegistryManager().get(Registry.BIOME_KEY).getId(biome);
+                this.addLine(applyColors(Configs.Formats.BIOME_REG_NAME_FORMAT.getStringValue())
+                  .replace("{name}", rl != null ? rl.toString() : "?"));
             }
             break;
 
           case TILE_ENTITIES:
+            // TODO 1.17
+            //this.addLine(String.format("Client world TE - L: %d, T: %d", mc.world.blockEntities.size(), mc.world.tickingBlockEntities.size()));
             this.addLine(format(format(applyColors(Configs.Formats.TILE_ENTITIES_FORMAT.getStringValue())
               .replace("%", "\0")
-              .replace("{loaded}", "%"), mc.world.blockEntities.size())
-              .replace("{ticking}", "%"), mc.world.tickingBlockEntities.size()).replace("\0", "%"));
+              .replace("{loaded}", "%"), "? (TODO 1.17)")
+              .replace("{ticking}", "%"), "? (TODO 1.17)").replace("\0", "%"));
             break;
 
           case ENTITIES_CLIENT:
@@ -897,7 +894,7 @@ public class RenderHandler implements IRenderer
                   if(hasOther2) str4.append(",");
                   str4.append(format(applyColors(Configs.Formats.ENTITIES_SERVER_FORMAT.getStringValue())
                     .replace("%", "\0")
-                    .replace("{e}", "%"), ((IMixinServerWorld) serverWorld).getEntityList().size()).replace("\0", "%"));
+                    .replace("{e}", "%"), ((IServerEntityManager) ((IMixinServerWorld) serverWorld).minihud_getEntityManager()).getIndexSize()).replace("\0", "%"));
                   this.addedTypes.add(InfoToggle.ENTITIES_SERVER);
                   hasOther2 = true;
                 }

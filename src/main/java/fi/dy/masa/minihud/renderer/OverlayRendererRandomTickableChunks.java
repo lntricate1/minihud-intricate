@@ -3,7 +3,6 @@ package fi.dy.masa.minihud.renderer;
 import java.util.HashSet;
 import java.util.Set;
 import javax.annotation.Nullable;
-import org.lwjgl.opengl.GL11;
 import com.google.gson.JsonObject;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.VertexFormats;
@@ -11,6 +10,7 @@ import net.minecraft.entity.Entity;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
 import fi.dy.masa.malilib.util.Color4f;
 import fi.dy.masa.malilib.util.JsonUtils;
 import fi.dy.masa.minihud.config.Configs;
@@ -92,7 +92,7 @@ public class OverlayRendererRandomTickableChunks extends OverlayRendererBase
 
         for (ChunkPos pos : chunks)
         {
-            this.renderChunkEdgesIfApplicable(cameraPos, pos, chunks, entity, color);
+            this.renderChunkEdgesIfApplicable(cameraPos, pos, chunks, entity.getEntityWorld(), color);
         }
 
         BUFFER_1.end();
@@ -129,7 +129,7 @@ public class OverlayRendererRandomTickableChunks extends OverlayRendererBase
         return set;
     }
 
-    protected void renderChunkEdgesIfApplicable(Vec3d cameraPos, ChunkPos pos, Set<ChunkPos> chunks, Entity entity, Color4f color)
+    protected void renderChunkEdgesIfApplicable(Vec3d cameraPos, ChunkPos pos, Set<ChunkPos> chunks, World world, Color4f color)
     {
         for (Direction side : HORIZONTALS)
         {
@@ -137,12 +137,12 @@ public class OverlayRendererRandomTickableChunks extends OverlayRendererBase
 
             if (chunks.contains(posAdj) == false)
             {
-                this.renderChunkEdge(pos, side, cameraPos, color);
+                this.renderChunkEdge(pos, side, cameraPos, color, world);
             }
         }
     }
 
-    private void renderChunkEdge(ChunkPos pos, Direction side, Vec3d cameraPos, Color4f color)
+    private void renderChunkEdge(ChunkPos pos, Direction side, Vec3d cameraPos, Color4f color, World world)
     {
         double minX, minZ, maxX, maxZ;
 
@@ -176,14 +176,10 @@ public class OverlayRendererRandomTickableChunks extends OverlayRendererBase
                 return;
         }
 
-        RenderUtils.renderWallWithLines(minX, 0, minZ, maxX, 256, maxZ, 16, 16, true, cameraPos, color, BUFFER_1, BUFFER_2);
-    }
+        int minY = world != null ? world.getBottomY() : -64;
+        int maxY = world != null ? world.getTopY() : 320;
 
-    @Override
-    public void allocateGlResources()
-    {
-        this.allocateBuffer(GL11.GL_QUADS);
-        this.allocateBuffer(GL11.GL_LINES);
+        RenderUtils.renderWallWithLines(minX, minY, minZ, maxX, maxY, maxZ, 16, 16, true, cameraPos, color, BUFFER_1, BUFFER_2);
     }
 
     @Override
