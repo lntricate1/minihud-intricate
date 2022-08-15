@@ -13,9 +13,6 @@ import fi.dy.masa.minihud.MiniHUD;
 
 public enum InfoToggle implements IConfigInteger, IHotkeyTogglable
 {
-    BEE_COUNT               ("infoBeeCount",                false, 36, "", "Show the number of bees in the targeted Hive or Nest.\nNote: This only works in single player without server-side support."),
-    BIOME                   ("infoBiome",                   false, 20, "", "Show the name of the current biome"),
-    BIOME_REG_NAME          ("infoBiomeRegistryName",       false, 21, "", "Show the registry name of the current biome"),
     BEE_COUNT               ("infoBeeCount",                false, 36, "", "Show the number of bees in the targeted Hive or Nest.\n§6Note: This only works in single player (without server-side support,\n§6which doesn't exist yet, but will be in the Servux mod at some point)."),
     BIOME                   ("infoBiome",                   false, 20, "", "Show the name of the current biome"),
     BIOME_REG_NAME          ("infoBiomeRegistryName",       false, 21, "", "Show the registry name of the current biome"),

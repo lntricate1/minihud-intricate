@@ -12,9 +12,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nullable;
-import com.mojang.blaze3d.systems.RenderSystem;//Maybe changes
+import com.mojang.blaze3d.systems.RenderSystem;
 
-import org.graalvm.compiler.code.DataSection;//Maybe changes
+//import org.graalvm.compiler.code.DataSection;//Maybe changes
 import net.minecraft.block.BeehiveBlock;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.AbstractFurnaceBlockEntity;
@@ -128,19 +128,21 @@ public class RenderHandler implements IRenderer
       final int lineHeight = fontRenderer.fontHeight + 2;
       final int contentHeight = lines.size() * lineHeight - 2;
       final int bgMargin = 2;
-      if (scale == 0d)
+      if (scale < 0.0125)
       {
         return 0;
       }
-      if (scale != 1d)
+      MatrixStack globalStack = RenderSystem.getModelViewStack();
+      if (scale != 1)
       {
         if (scale != 0)
         {
           xOff = (int) (xOff * scale);
           yOff = (int) (yOff * scale);
         }
-        RenderSystem.pushMatrix();
-        RenderSystem.scaled(scale, scale, 0);
+        globalStack.push();
+        globalStack.scale((float) scale, (float) scale, 1.0f);
+        RenderSystem.applyModelViewMatrix();
       }
       double posX = xOff + bgMargin;
       double posY = yOff + bgMargin;
@@ -177,9 +179,10 @@ public class RenderHandler implements IRenderer
           fontRenderer.draw(matrixStack, line, x, y, textColor);
         }
       }
-      if (scale != 1d)
+      if (scale != 1)
       {
-        RenderSystem.popMatrix();
+        globalStack.pop();
+        RenderSystem.applyModelViewMatrix();
       }
       return contentHeight + bgMargin * 2;
     }
@@ -561,26 +564,44 @@ public class RenderHandler implements IRenderer
             break;
 
           case COORDINATES:
-          //ADD case COORDINATES_SCALED:
+          case COORDINATES_SCALED:
           case DIMENSION:
             // Don't add the same line multiple times
-            if (this.addedTypes.contains(InfoToggle.COORDINATES) || this.addedTypes.contains(InfoToggle.DIMENSION))
+            if (this.addedTypes.contains(InfoToggle.COORDINATES) || this.addedTypes.contains(InfoToggle.COORDINATES_SCALED) || this.addedTypes.contains(InfoToggle.DIMENSION))
               return;
             //String pre = "";
             StringBuilder str = new StringBuilder(128);
             str.append("[");
+            double x = entity.getX();
+            double z = entity.getZ();
+            boolean hasOther4 = false;
             if (InfoToggle.COORDINATES.getBooleanValue())
             {
               str.append(format(format(format(applyColors(Configs.Formats.COORDINATES_FORMAT.getStringValue())
                 .replace("%", "\0")
-                .replace("{x}", "%"), entity.getX())
+                .replace("{x}", "%"), x)
                 .replace("{y}", "%"), y)
-                .replace("{z}", "%"), entity.getZ()).replace("\0", "%"));
+                .replace("{z}", "%"), z).replace("\0", "%"));
               this.addedTypes.add(InfoToggle.COORDINATES);
+              hasOther4 = true;
+            }
+            boolean isNether = world.getRegistryKey() == World.NETHER;
+            if (InfoToggle.COORDINATES_SCALED.getBooleanValue() && (isNether || world.getRegistryKey() == World.OVERWORLD))
+            {
+              if(hasOther4) str.append(",");
+              double scale = isNether ? 8.0 : 1.0 / 8.0;
+              str.append(format(format(format(applyColors(Configs.Formats.COORDINATES_SCALED_FORMAT.getStringValue())
+                .replace("%", "\0")
+                .replace("{dim}", isNether ? Configs.Formats.COORDINATES_SCALED_OVERWORLD_FORMAT.getStringValue() : Configs.Formats.COORDINATES_SCALED_NETHER_FORMAT.getStringValue())
+                .replace("{x}", "%"), x * scale)
+                .replace("{y}", "%"), y)
+                .replace("{z}", "%"), z * scale).replace("\0", "%"));
+              this.addedTypes.add(InfoToggle.COORDINATES);
+              hasOther4 = true;
             }
             if (InfoToggle.DIMENSION.getBooleanValue())
             {
-              if(InfoToggle.COORDINATES.getBooleanValue()) str.append(",");
+              if(hasOther4) str.append(",");
               str.append(applyColors(Configs.Formats.DIMENSION_FORMAT.getStringValue())
                 .replace("{dim}", world.getRegistryKey().getValue().toString()));
               this.addedTypes.add(InfoToggle.DIMENSION);
@@ -720,8 +741,16 @@ public class RenderHandler implements IRenderer
               this.addLine(applyColors(Configs.Formats.BEE_COUNT_FORMAT.getStringValue())
                 .replace("{bees}", Integer.toString(((BeehiveBlockEntity) be).getBeeCount())));
             break;
-            
-            //ADD FURNACE XP
+
+          case FURNACE_XP:
+            World bestWorld1 = WorldUtils.getBestWorld(mc);
+            BlockEntity be1 = this.getTargetedBlockEntity(bestWorld1, mc);
+            if (be1 instanceof AbstractFurnaceBlockEntity furnace)
+            {
+              this.addLine(applyColors(Configs.Formats.FURNACE_XP_FORMAT.getStringValue())
+                .replace("{xp}", Integer.toString(MiscUtils.getFurnaceXpAmount(furnace))));
+            }
+            break;
 
           case HONEY_LEVEL:
             BlockState state = this.getTargetedBlock(mc);
@@ -732,7 +761,40 @@ public class RenderHandler implements IRenderer
                 .replace("{honey}", Integer.toString(BeehiveBlockEntity.getHoneyLevel(state))));
             }
             break;
-//ADD HONSE
+
+          case HORSE_SPEED:
+          case HORSE_JUMP:
+            if (this.addedTypes.contains(InfoToggle.HORSE_SPEED) || this.addedTypes.contains(InfoToggle.HORSE_JUMP))
+              return;
+
+            Entity vehicle = this.mc.player.getVehicle();
+            if ((vehicle instanceof HorseBaseEntity) == false)
+              return;
+            HorseBaseEntity horse = (HorseBaseEntity) vehicle;
+            if (horse.isSaddled())
+            {
+              if (InfoToggle.HORSE_SPEED.getBooleanValue())
+              {
+                this.addLine(format(applyColors(Configs.Formats.HORSE_SPEED_FORMAT.getStringValue())
+                  .replace("%", "\0")
+                  .replace("{speed}", "%"), horse.getMovementSpeed() * 42.163f).replace("\0", "%"));
+                this.addedTypes.add(InfoToggle.HORSE_SPEED);
+              }
+              if (InfoToggle.HORSE_JUMP.getBooleanValue())
+              {
+                double jump = horse.getJumpStrength();
+                double calculatedJumpHeight =
+                  -0.1817584952d * jump * jump * jump +
+                  3.689713992d * jump * jump +
+                  2.128599134d * jump +
+                  -0.343930367;
+                this.addLine(format(applyColors(Configs.Formats.HORSE_JUMP_FORMAT.getStringValue())
+                  .replace("%", "\0")
+                  .replace("{height}", "%"), calculatedJumpHeight).replace("\0", "%"));
+                this.addedTypes.add(InfoToggle.HORSE_JUMP);
+              }
+            }
+            break;
           case ROTATION_YAW:
           case ROTATION_PITCH:
           case SPEED:
@@ -774,7 +836,16 @@ public class RenderHandler implements IRenderer
             this.addLine(str3.append("]").toString());
             break;
 
-// ADD SPEED HV
+          case SPEED_HV:
+            double dx = entity.getX() - entity.lastRenderX;
+            double dy = entity.getY() - entity.lastRenderY;
+            double dz = entity.getZ() - entity.lastRenderZ;
+            this.addLine(format(format(applyColors(Configs.Formats.SPEED_HV_FORMAT.getStringValue())
+              .replace("%", "\0")
+              .replace("{xz}", "%"), Math.sqrt(dx * dx + dz * dz) * 20)
+              .replace("{y}", "%"), dy * 20).replace("\0", "%"));
+            break;
+
           case SPEED_AXIS:
             this.addLine(format(format(format(applyColors(Configs.Formats.SPEED_AXIS_FORMAT.getStringValue())
               .replace("%", "\0")
@@ -839,9 +910,9 @@ public class RenderHandler implements IRenderer
             break;
 
           case BIOME:
-            WorldChunk clientChunk = this.getClientChunk(chunkPos);
+            WorldChunk clientChunk1 = this.getClientChunk(chunkPos);
 
-            if (clientChunk.isEmpty() == false)
+            if (clientChunk1.isEmpty() == false)
             {
                 Biome biome = mc.world.getBiome(pos);
                 Identifier id = mc.world.getRegistryManager().get(Registry.BIOME_KEY).getId(biome);
@@ -851,9 +922,9 @@ public class RenderHandler implements IRenderer
             break;
 
           case BIOME_REG_NAME:
-            WorldChunk clientChunk = this.getClientChunk(chunkPos);
+            WorldChunk clientChunk2 = this.getClientChunk(chunkPos);
 
-            if (clientChunk.isEmpty() == false)
+            if (clientChunk2.isEmpty() == false)
             {
                 Biome biome = mc.world.getBiome(pos);
                 Identifier rl = mc.world.getRegistryManager().get(Registry.BIOME_KEY).getId(biome);

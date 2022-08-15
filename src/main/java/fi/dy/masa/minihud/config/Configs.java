@@ -284,6 +284,12 @@ public class Configs implements IConfigHandler
         "\"}", "Format of infoChunkUpdates"),
         COORDINATES_FORMAT               = new ConfigString("infoCoordinatesFormat", "{\"color\":\"white\",\"text\":\"" +
         "XYZ: {x}.2f / {y}.4f / {z}.2f\"}", "Format of infoCoordinates, change precision by changing the numbers"),
+        COORDINATES_SCALED_FORMAT        = new ConfigString("infoCoordinatesScaledFormat", "[{dim}, {\"color\":\"white\",\"text\":\"" +
+        ": {x}.2f / {y}.4f / {z}.2f\"}]", "Format of infoCoordinatesScaled, change precision by changing the numbers"),
+        COORDINATES_SCALED_NETHER_FORMAT        = new ConfigString("infoCoordinatesScaledNetherFormat", "{\"color\":\"white\",\"text\":\"" +
+        "Nether\"}", "Format of infoCoordinatesScaled, change precision by changing the numbers"),
+        COORDINATES_SCALED_OVERWORLD_FORMAT        = new ConfigString("infoCoordinatesScaledOverworldFormat", "{\"color\":\"white\",\"text\":\"" +
+        "Overworld\"}", "Format of infoCoordinatesScaled, change precision by changing the numbers"),
         DIFFICULTY_FORMAT                = new ConfigString("infoDifficultyFormat", "{\"color\":\"white\",\"text\":\"" +
         "Local Difficulty: {local}.2f // {clamped}.2f (Day {day}d)\"}", "Format of infoDifficulty"),
         DIMENSION_FORMAT                 = new ConfigString("infoDimensionIdFormat", "{\"color\":\"white\",\"text\":\"" +
@@ -308,8 +314,14 @@ public class Configs implements IConfigHandler
         "Negative Z\"}", "Text for infoFacing when facing negative Z"),
         FPS_FORMAT                       = new ConfigString("infoFPSFormat", "{\"color\":\"white\",\"text\":\"" +
         "{FPS}d fps\"}", "Format of infoFPS"),
+        FURNACE_XP_FORMAT                = new ConfigString("infoFurnaceXPFormat", "[{\"color\":\"white\",\"text\":\"" +
+        "Furnace XP: \"}, {\"color\":\"aqua\",\"text\":\"{xp}\"}]", "Format of infoFurnaceXP"),
         HONEY_LEVEL_FORMAT               = new ConfigString("infoHoneyLevelFormat", "[{\"color\":\"white\",\"text\":\"" +
         "Honey: \"}, {\"color\":\"aqua\",\"text\":\"{honey}\"}]", "Format of infoHoneyLevel"),
+        HORSE_JUMP_FORMAT                = new ConfigString("infoHorseJumpFormat", "{\"color\":\"white\",\"text\":\"" +
+        "Horse Jump: {height}.3f m\"}", "Format of infoJumpSpeed"),
+        HORSE_SPEED_FORMAT               = new ConfigString("infoHorseSpeedFormat", "{\"color\":\"white\",\"text\":\"" +
+        "Horse Speed: {speed}.3f m/s\"}", "Format of infoHorseSpeed"),
         LIGHT_LEVEL_CLIENT_FORMAT        = new ConfigString("infoLightLevelClientFormat", "{\"color\":\"white\",\"text\":\"" +
         "Client Light: {light}d (block: {block}d, sky: {sky}d)\"}", "Format of infoLightLevelClient"),
         LIGHT_LEVEL_SERVER_FORMAT        = new ConfigString("infoLightLevelServerFormat", "{\"color\":\"white\",\"text\":\"" +
@@ -356,6 +368,8 @@ public class Configs implements IConfigHandler
         " / Speed: {speed}.3f m/s\"}", "Format of infoSpeed"),
         SPEED_AXIS_FORMAT                = new ConfigString("infoSpeedAxisFormat", "{\"color\":\"white\",\"text\":\"" +
         "Speed: x: {x}.3f y: {y}.3f z: {z}.3f m/s\"}", "Format of infoSpeedAxis"),
+        SPEED_HV_FORMAT                  = new ConfigString("infoSpeedHVFormat", "{\"color\":\"white\",\"text\":\"" +
+        "Speed: xz: {xz}.3f y: {y}.3f m/s\"}", "Format of infoSpeedHV"),
         TILE_ENTITIES_FORMAT             = new ConfigString("infoTileEntitiesFormat", "{\"color\":\"white\",\"text\":\"" +
         "Client world TE - L: {loaded}d, T: {ticking}d\"}", "Format of infoTileEntities"),
         TIME_DAY_MODULO_FORMAT           = new ConfigString("infoTimeDayModuloFormat", "{\"color\":\"white\",\"text\":\"" +
@@ -388,6 +402,9 @@ public class Configs implements IConfigHandler
         CHUNK_SECTIONS_FULL_FORMAT,
         CHUNK_UPDATES_FORMAT,
         COORDINATES_FORMAT,
+        COORDINATES_SCALED_FORMAT,
+        COORDINATES_SCALED_NETHER_FORMAT,
+        COORDINATES_SCALED_OVERWORLD_FORMAT,
         DIFFICULTY_FORMAT,
         DIMENSION_FORMAT,
         DISTANCE_FORMAT,
@@ -400,7 +417,10 @@ public class Configs implements IConfigHandler
         FACING_PZ_FORMAT,
         FACING_NZ_FORMAT,
         FPS_FORMAT,
+        FURNACE_XP_FORMAT,
         HONEY_LEVEL_FORMAT,
+        HORSE_JUMP_FORMAT,
+        HORSE_SPEED_FORMAT,
         LIGHT_LEVEL_CLIENT_FORMAT,
         LIGHT_LEVEL_SERVER_FORMAT,
         LOOKING_AT_BLOCK_FORMAT,
@@ -422,6 +442,7 @@ public class Configs implements IConfigHandler
         SLIME_CHUNK_YES_FORMAT,
         SLIME_CHUNK_NO_FORMAT,
         SPEED_FORMAT,
+        SPEED_HV_FORMAT,
         SPEED_AXIS_FORMAT,
         TILE_ENTITIES_FORMAT,
         TIME_DAY_MODULO_FORMAT,
