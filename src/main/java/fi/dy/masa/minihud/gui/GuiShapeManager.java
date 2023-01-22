@@ -55,7 +55,7 @@ public class GuiShapeManager extends GuiListBase<ShapeBase, WidgetShapeEntry, Wi
     @Override
     public void initGui()
     {
-        GuiConfigs.tab = ConfigGuiTab.SHAPES;
+        GuiConfigs.tab = GuiConfigs.getConfigGuiTab("minihud.gui.button.config_gui.shapes");
 
         super.initGui();
 
@@ -71,7 +71,7 @@ public class GuiShapeManager extends GuiListBase<ShapeBase, WidgetShapeEntry, Wi
         int y = 26;
         int rows = 1;
 
-        for (ConfigGuiTab tab : ConfigGuiTab.values())
+        for (ConfigGuiTab tab : GuiConfigs.tabs)
         {
             int width = this.getStringWidth(tab.getDisplayName()) + 10;
 

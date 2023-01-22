@@ -7,6 +7,7 @@ import com.google.common.collect.ImmutableList;
 import fi.dy.masa.malilib.config.ConfigType;
 import fi.dy.masa.malilib.config.ConfigUtils;
 import fi.dy.masa.malilib.config.IConfigBase;
+import fi.dy.masa.malilib.config.IConfigBoolean;
 import fi.dy.masa.malilib.config.options.ConfigTypeWrapper;
 import fi.dy.masa.malilib.gui.GuiBase;
 import fi.dy.masa.malilib.gui.GuiConfigsBase;
@@ -19,20 +20,72 @@ import fi.dy.masa.minihud.config.Configs;
 import fi.dy.masa.minihud.config.InfoToggle;
 import fi.dy.masa.minihud.config.RendererToggle;
 import fi.dy.masa.minihud.config.StructureToggle;
-
 public class GuiConfigs extends GuiConfigsBase
 {
-    public static ConfigGuiTab tab = ConfigGuiTab.INFO_LINES;
+    public static ArrayList<ConfigGuiTab> tabs = new ArrayList<>();
+
+    public static ConfigGuiTab tab;
+
+    static
+    {
+        addOptionsFromList("minihud.gui.button.config_gui.generic", Configs.Generic.OPTIONS, 200);
+
+        addOptionsFromList("minihud.gui.button.config_gui.colors", Configs.Colors.OPTIONS, 100);
+
+        addOptionsFromList("minihud.gui.button.config_gui.info_lines", (ImmutableList) ConfigUtils.createConfigWrapperForType(ConfigType.BOOLEAN, ImmutableList.copyOf(InfoToggle.values())), 100);
+        addOptionsFromList("minihud.gui.button.config_gui.info_lines", (ImmutableList) ConfigUtils.createConfigWrapperForType(ConfigType.HOTKEY, ImmutableList.copyOf(InfoToggle.values())), 100);
+        addOptionsFromList("minihud.gui.button.config_gui.info_lines", (ImmutableList) ConfigUtils.createConfigWrapperForType(ConfigType.INTEGER, ImmutableList.copyOf(InfoToggle.values())), 100);
+
+        addOptionsFromList("minihud.gui.button.config_gui.structures", ImmutableList.of(new ConfigTypeWrapper(ConfigType.BOOLEAN, RendererToggle.OVERLAY_STRUCTURE_MAIN_TOGGLE)), 200);
+        for(IConfigBase option : StructureToggle.getToggleConfigs())
+            addOptionsFromList("minihud.gui.button.config_gui.structures", ImmutableList.of(option), 200);
+        for(IConfigBase option : StructureToggle.getHotkeys())
+            addOptionsFromList("minihud.gui.button.config_gui.structures", ImmutableList.of(option), 200);
+        for(IConfigBase option : StructureToggle.getColorConfigs())
+            addOptionsFromList("minihud.gui.button.config_gui.structures", ImmutableList.of(option), 200);
+        // addOptionsFromList("minihud.gui.button.config_gui.structures", StructureToggle.getToggleConfigs(), 200);
+        // addOptionsFromList("minihud.gui.button.config_gui.structures", StructureToggle.getHotkeys(), 200);
+        // addOptionsFromList("minihud.gui.button.config_gui.structures", StructureToggle.getColorConfigs(), 200);
+
+        addOptionsFromList("minihud.gui.button.config_gui.renderers", (ImmutableList) ConfigUtils.createConfigWrapperForType(ConfigType.BOOLEAN, ImmutableList.copyOf(RendererToggle.values())), 220);
+        addOptionsFromList("minihud.gui.button.config_gui.renderers", (ImmutableList) ConfigUtils.createConfigWrapperForType(ConfigType.HOTKEY, ImmutableList.copyOf(RendererToggle.values())), 220);
+
+        addOptionsFromList("minihud.gui.button.config_gui.shapes", ImmutableList.<IConfigBase>of(), 100);
+
+        tab = GuiConfigs.tabs.get(2);
+    }
 
     public GuiConfigs()
     {
         super(10, 50, Reference.MOD_ID, null, "minihud.gui.title.configs");
+
+    }
+
+    public static void addOptionsFromList(String translationKey, ImmutableList<IConfigBase> OPTIONS, int width)
+    {
+        for(ConfigGuiTab tab : GuiConfigs.tabs)
+            if(tab.sameTab(translationKey))
+            {
+                tab.options.addAll(OPTIONS);
+                return;
+            }
+
+        GuiConfigs.tabs.add(new GuiConfigs.ConfigGuiTab(translationKey, OPTIONS, width));
+    }
+
+
+    public static ConfigGuiTab getConfigGuiTab(String translationKey)
+    {
+        for(ConfigGuiTab tab : GuiConfigs.tabs)
+            if(tab.sameTab(translationKey))
+                return tab;
+        return null;
     }
 
     @Override
     public void initGui()
     {
-        if (GuiConfigs.tab == ConfigGuiTab.SHAPES)
+        if (GuiConfigs.tab.sameTab("minihud.gui.button.config_gui.shapes"))
         {
             GuiBase.openGui(new GuiShapeManager());
             return;
@@ -45,7 +98,7 @@ public class GuiConfigs extends GuiConfigsBase
         int y = 26;
         int rows = 1;
 
-        for (ConfigGuiTab tab : ConfigGuiTab.values())
+        for (ConfigGuiTab tab : GuiConfigs.tabs)
         {
             int width = this.getStringWidth(tab.getDisplayName()) + 10;
 
@@ -81,74 +134,57 @@ public class GuiConfigs extends GuiConfigsBase
     @Override
     protected int getConfigWidth()
     {
-        ConfigGuiTab tab = GuiConfigs.tab;
-
-        if (tab == ConfigGuiTab.GENERIC ||
-            tab == ConfigGuiTab.STRUCTURES)
-        {
-            return 200;
-        }
-        if (tab == ConfigGuiTab.RENDERERS)
-        {
-            return 220;
-        }
-        else if (tab == ConfigGuiTab.INFO_LINES)
-        {
-            return 120;
-        }
-        else if (tab == ConfigGuiTab.COLORS)
-        {
-            return 100;
-        }
-
-        return super.getConfigWidth();
+        return GuiConfigs.tab.getWidth();
     }
 
     @Override
     protected boolean useKeybindSearch()
     {
-        return GuiConfigs.tab == ConfigGuiTab.INFO_LINES || GuiConfigs.tab == ConfigGuiTab.RENDERERS;
+        // return GuiConfigs.tab == ConfigGuiTab.INFO_LINES || GuiConfigs.tab == ConfigGuiTab.RENDERERS;
+        return true;
     }
 
     @Override
     public List<ConfigOptionWrapper> getConfigs()
     {
-        ConfigGuiTab tab = GuiConfigs.tab;
+        return ConfigOptionWrapper.createFor(GuiConfigs.tab.options);
 
-        if (tab == ConfigGuiTab.GENERIC)
-        {
-            return ConfigOptionWrapper.createFor(Configs.Generic.OPTIONS);
-        }
-        else if (tab == ConfigGuiTab.COLORS)
-        {
-            return ConfigOptionWrapper.createFor(Configs.Colors.OPTIONS);
-        }
-        else if (tab == ConfigGuiTab.INFO_LINES)
-        {
-            List<IConfigBase> list = new ArrayList<>();
-            list.addAll(ConfigUtils.createConfigWrapperForType(ConfigType.BOOLEAN, ImmutableList.copyOf(InfoToggle.values())));
-            list.addAll(ConfigUtils.createConfigWrapperForType(ConfigType.HOTKEY, ImmutableList.copyOf(InfoToggle.values())));
-            list.addAll(ConfigUtils.createConfigWrapperForType(ConfigType.INTEGER, ImmutableList.copyOf(InfoToggle.values())));
-            return ConfigOptionWrapper.createFor(list);
-        }
-        else if (tab == ConfigGuiTab.STRUCTURES)
-        {
-            List<IConfigBase> list = new ArrayList<>();
-            list.add(new ConfigTypeWrapper(ConfigType.BOOLEAN, RendererToggle.OVERLAY_STRUCTURE_MAIN_TOGGLE));
-            list.addAll(StructureToggle.getToggleConfigs());
-            list.addAll(StructureToggle.getHotkeys());
-            list.addAll(StructureToggle.getColorConfigs());
-            return ConfigOptionWrapper.createFor(list);
-        }
-        else if (tab == ConfigGuiTab.RENDERERS)
-        {
-            List<IConfigBase> list = new ArrayList<>();
-            list.addAll(ConfigUtils.createConfigWrapperForType(ConfigType.BOOLEAN, ImmutableList.copyOf(RendererToggle.values())));
-            list.addAll(ConfigUtils.createConfigWrapperForType(ConfigType.HOTKEY, ImmutableList.copyOf(RendererToggle.values())));
-            return ConfigOptionWrapper.createFor(list);
-        }
+        // ConfigGuiTab tab = GuiConfigs.tab;
 
-        return Collections.emptyList();
+        // if (tab == ConfigGuiTab.GENERIC)
+        // {
+        //     return ConfigOptionWrapper.createFor(Configs.Generic.OPTIONS);
+        // }
+        // else if (tab == ConfigGuiTab.COLORS)
+        // {
+        //     return ConfigOptionWrapper.createFor(Configs.Colors.OPTIONS);
+        // }
+        // else if (tab == ConfigGuiTab.INFO_LINES)
+        // {
+        //     List<IConfigBase> list = new ArrayList<>();
+        //     list.addAll(ConfigUtils.createConfigWrapperForType(ConfigType.BOOLEAN, ImmutableList.copyOf(InfoToggle.values())));
+        //     list.addAll(ConfigUtils.createConfigWrapperForType(ConfigType.HOTKEY, ImmutableList.copyOf(InfoToggle.values())));
+        //     list.addAll(ConfigUtils.createConfigWrapperForType(ConfigType.INTEGER, ImmutableList.copyOf(InfoToggle.values())));
+        //     return ConfigOptionWrapper.createFor(list);
+        // }
+        // else if (tab == ConfigGuiTab.STRUCTURES)
+        // {
+        //     List<IConfigBase> list = new ArrayList<>();
+        //     list.add(new ConfigTypeWrapper(ConfigType.BOOLEAN, RendererToggle.OVERLAY_STRUCTURE_MAIN_TOGGLE));
+        //     list.addAll(StructureToggle.getToggleConfigs());
+        //     list.addAll(StructureToggle.getHotkeys());
+        //     list.addAll(StructureToggle.getColorConfigs());
+        //     return ConfigOptionWrapper.createFor(list);
+        // }
+        // else if (tab == ConfigGuiTab.RENDERERS)
+        // {
+        //     List<IConfigBase> list = new ArrayList<>();
+        //     list.addAll(ConfigUtils.createConfigWrapperForType(ConfigType.BOOLEAN, ImmutableList.copyOf(RendererToggle.values())));
+        //     list.addAll(ConfigUtils.createConfigWrapperForType(ConfigType.HOTKEY, ImmutableList.copyOf(RendererToggle.values())));
+        //     return ConfigOptionWrapper.createFor(list);
+        // }
+
+        // return Collections.emptyList();
     }
 
     private static class ButtonListenerConfigTabs implements IButtonActionListener
@@ -167,7 +203,7 @@ public class GuiConfigs extends GuiConfigsBase
         {
             GuiConfigs.tab = this.tab;
 
-            if (this.tab == ConfigGuiTab.SHAPES)
+            if (this.tab.sameTab("minihud.gui.button.config_gui.shapes"))
             {
                 GuiBase.openGui(new GuiShapeManager());
             }
@@ -180,25 +216,41 @@ public class GuiConfigs extends GuiConfigsBase
         }
     }
 
-    public enum ConfigGuiTab
+    public static class ConfigGuiTab
     {
-        GENERIC             ("minihud.gui.button.config_gui.generic"),
-        COLORS              ("minihud.gui.button.config_gui.colors"),
-        INFO_LINES          ("minihud.gui.button.config_gui.info_lines"),
-        STRUCTURES          ("minihud.gui.button.config_gui.structures"),
-        RENDERERS           ("minihud.gui.button.config_gui.renderers"),
-        SHAPES              ("minihud.gui.button.config_gui.shapes");
+        // GENERIC             ("minihud.gui.button.config_gui.generic"),
+        // COLORS              ("minihud.gui.button.config_gui.colors"),
+        // INFO_LINES          ("minihud.gui.button.config_gui.info_lines"),
+        // STRUCTURES          ("minihud.gui.button.config_gui.structures"),
+        // RENDERERS           ("minihud.gui.button.config_gui.renderers"),
+        // SHAPES              ("minihud.gui.button.config_gui.shapes");
+
+        public ArrayList<IConfigBase> options;
 
         private final String translationKey;
+        
+        private final int width;
 
-        ConfigGuiTab(String translationKey)
+        ConfigGuiTab(String translationKey, ImmutableList<IConfigBase> OPTIONS, int width)
         {
             this.translationKey = translationKey;
+            this.options = new ArrayList<IConfigBase>(OPTIONS);
+            this.width = width;
         }
 
         public String getDisplayName()
         {
             return StringUtils.translate(this.translationKey);
+        }
+
+        public boolean sameTab(String translationKey)
+        {
+          return this.translationKey == translationKey;
+        }
+
+        public int getWidth()
+        {
+          return this.width;
         }
     }
 }

@@ -65,8 +65,9 @@ public class GuiShapeEditor extends GuiRenderLayerEditBase
 
         this.createShapeEditorElements(x, y);
 
-        ButtonGeneric button = new ButtonGeneric(x, this.height - 24, -1, 20, ConfigGuiTab.SHAPES.getDisplayName());
-        this.addButton(button, new GuiShapeManager.ButtonListenerTab(ConfigGuiTab.SHAPES));
+        ConfigGuiTab tab = GuiConfigs.getConfigGuiTab("minihud.gui.button.config_gui.shapes");
+        ButtonGeneric button = new ButtonGeneric(x, this.height - 24, -1, 20, tab.getDisplayName());
+        this.addButton(button, new GuiShapeManager.ButtonListenerTab(tab));
 
         this.createLayerEditControls(146, 162, this.getLayerRange());
     }
