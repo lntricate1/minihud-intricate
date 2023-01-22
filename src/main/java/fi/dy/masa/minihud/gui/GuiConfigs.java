@@ -1,13 +1,11 @@
 package fi.dy.masa.minihud.gui;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import com.google.common.collect.ImmutableList;
 import fi.dy.masa.malilib.config.ConfigType;
 import fi.dy.masa.malilib.config.ConfigUtils;
 import fi.dy.masa.malilib.config.IConfigBase;
-import fi.dy.masa.malilib.config.IConfigBoolean;
 import fi.dy.masa.malilib.config.options.ConfigTypeWrapper;
 import fi.dy.masa.malilib.gui.GuiBase;
 import fi.dy.masa.malilib.gui.GuiConfigsBase;
@@ -43,9 +41,6 @@ public class GuiConfigs extends GuiConfigsBase
             addOptionsFromList("minihud.gui.button.config_gui.structures", ImmutableList.of(option), 200);
         for(IConfigBase option : StructureToggle.getColorConfigs())
             addOptionsFromList("minihud.gui.button.config_gui.structures", ImmutableList.of(option), 200);
-        // addOptionsFromList("minihud.gui.button.config_gui.structures", StructureToggle.getToggleConfigs(), 200);
-        // addOptionsFromList("minihud.gui.button.config_gui.structures", StructureToggle.getHotkeys(), 200);
-        // addOptionsFromList("minihud.gui.button.config_gui.structures", StructureToggle.getColorConfigs(), 200);
 
         addOptionsFromList("minihud.gui.button.config_gui.renderers", (ImmutableList) ConfigUtils.createConfigWrapperForType(ConfigType.BOOLEAN, ImmutableList.copyOf(RendererToggle.values())), 220);
         addOptionsFromList("minihud.gui.button.config_gui.renderers", (ImmutableList) ConfigUtils.createConfigWrapperForType(ConfigType.HOTKEY, ImmutableList.copyOf(RendererToggle.values())), 220);
@@ -148,43 +143,6 @@ public class GuiConfigs extends GuiConfigsBase
     public List<ConfigOptionWrapper> getConfigs()
     {
         return ConfigOptionWrapper.createFor(GuiConfigs.tab.options);
-
-        // ConfigGuiTab tab = GuiConfigs.tab;
-
-        // if (tab == ConfigGuiTab.GENERIC)
-        // {
-        //     return ConfigOptionWrapper.createFor(Configs.Generic.OPTIONS);
-        // }
-        // else if (tab == ConfigGuiTab.COLORS)
-        // {
-        //     return ConfigOptionWrapper.createFor(Configs.Colors.OPTIONS);
-        // }
-        // else if (tab == ConfigGuiTab.INFO_LINES)
-        // {
-        //     List<IConfigBase> list = new ArrayList<>();
-        //     list.addAll(ConfigUtils.createConfigWrapperForType(ConfigType.BOOLEAN, ImmutableList.copyOf(InfoToggle.values())));
-        //     list.addAll(ConfigUtils.createConfigWrapperForType(ConfigType.HOTKEY, ImmutableList.copyOf(InfoToggle.values())));
-        //     list.addAll(ConfigUtils.createConfigWrapperForType(ConfigType.INTEGER, ImmutableList.copyOf(InfoToggle.values())));
-        //     return ConfigOptionWrapper.createFor(list);
-        // }
-        // else if (tab == ConfigGuiTab.STRUCTURES)
-        // {
-        //     List<IConfigBase> list = new ArrayList<>();
-        //     list.add(new ConfigTypeWrapper(ConfigType.BOOLEAN, RendererToggle.OVERLAY_STRUCTURE_MAIN_TOGGLE));
-        //     list.addAll(StructureToggle.getToggleConfigs());
-        //     list.addAll(StructureToggle.getHotkeys());
-        //     list.addAll(StructureToggle.getColorConfigs());
-        //     return ConfigOptionWrapper.createFor(list);
-        // }
-        // else if (tab == ConfigGuiTab.RENDERERS)
-        // {
-        //     List<IConfigBase> list = new ArrayList<>();
-        //     list.addAll(ConfigUtils.createConfigWrapperForType(ConfigType.BOOLEAN, ImmutableList.copyOf(RendererToggle.values())));
-        //     list.addAll(ConfigUtils.createConfigWrapperForType(ConfigType.HOTKEY, ImmutableList.copyOf(RendererToggle.values())));
-        //     return ConfigOptionWrapper.createFor(list);
-        // }
-
-        // return Collections.emptyList();
     }
 
     private static class ButtonListenerConfigTabs implements IButtonActionListener
@@ -218,13 +176,6 @@ public class GuiConfigs extends GuiConfigsBase
 
     public static class ConfigGuiTab
     {
-        // GENERIC             ("minihud.gui.button.config_gui.generic"),
-        // COLORS              ("minihud.gui.button.config_gui.colors"),
-        // INFO_LINES          ("minihud.gui.button.config_gui.info_lines"),
-        // STRUCTURES          ("minihud.gui.button.config_gui.structures"),
-        // RENDERERS           ("minihud.gui.button.config_gui.renderers"),
-        // SHAPES              ("minihud.gui.button.config_gui.shapes");
-
         public ArrayList<IConfigBase> options;
 
         private final String translationKey;
