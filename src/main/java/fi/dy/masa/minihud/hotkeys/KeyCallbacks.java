@@ -75,7 +75,7 @@ public class KeyCallbacks
                 }
                 else
                 {
-                    GuiConfigs.tab = ConfigGuiTab.SHAPES;
+                    GuiConfigs.tab = GuiConfigs.getConfigGuiTab("minihud.gui.button.config_gui.shapes");
                     GuiBase.openGui(new GuiShapeManager());
                 }
             }
