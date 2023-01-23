@@ -2,6 +2,7 @@ package fi.dy.masa.minihud.event;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -11,11 +12,15 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nullable;
+import com.mojang.blaze3d.systems.RenderSystem;//Maybe changes
+
+import org.graalvm.compiler.code.DataSection;//Maybe changes
 import net.minecraft.block.BeehiveBlock;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.AbstractFurnaceBlockEntity;
 import net.minecraft.block.entity.BeehiveBlockEntity;
 import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.PlayerListEntry;
 import net.minecraft.client.util.math.MatrixStack;
@@ -25,9 +30,14 @@ import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.passive.HorseBaseEntity;
 import net.minecraft.item.FilledMapItem;
 import net.minecraft.item.ItemStack;
+import net.minecraft.text.Text;
 import net.minecraft.server.integrated.IntegratedServer;
 import net.minecraft.server.world.ServerChunkManager;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.state.property.BooleanProperty;
+import net.minecraft.state.property.DirectionProperty;
+import net.minecraft.state.property.IntProperty;
+import net.minecraft.state.property.Property;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.EntityHitResult;
@@ -51,6 +61,7 @@ import fi.dy.masa.malilib.gui.GuiBase;
 import fi.dy.masa.malilib.interfaces.IRenderer;
 import fi.dy.masa.malilib.render.RenderUtils;
 import fi.dy.masa.malilib.util.BlockUtils;
+import fi.dy.masa.malilib.util.GuiUtils;
 import fi.dy.masa.malilib.util.StringUtils;
 import fi.dy.masa.malilib.util.WorldUtils;
 import fi.dy.masa.minihud.config.Configs;
@@ -62,6 +73,8 @@ import fi.dy.masa.minihud.renderer.OverlayRenderer;
 import fi.dy.masa.minihud.util.DataStorage;
 import fi.dy.masa.minihud.util.IServerEntityManager;
 import fi.dy.masa.minihud.util.MiscUtils;
+
+import static java.lang.String.format;
 
 public class RenderHandler implements IRenderer
 {
@@ -79,7 +92,7 @@ public class RenderHandler implements IRenderer
     @Nullable private WorldChunk cachedClientChunk;
 
     private final List<StringHolder> lineWrappers = new ArrayList<>();
-    private final List<String> lines = new ArrayList<>();
+    private final List<Text> lines = new ArrayList<>();
 
     public RenderHandler()
     {
@@ -106,6 +119,69 @@ public class RenderHandler implements IRenderer
             //RenderUtils.color(1, 1, 1, 1);
             //OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, 240f, 240f);
         }
+    }
+
+    private int renderText(int xOff, int yOff, double scale, int textColor, int bgColor, HudAlignment alignment, boolean useBackground, boolean useShadow, List<Text> lines, MatrixStack matrixStack)
+    {
+      TextRenderer fontRenderer = this.mc.textRenderer;
+      final int scaledWidth = GuiUtils.getScaledWindowWidth();
+      final int lineHeight = fontRenderer.fontHeight + 2;
+      final int contentHeight = lines.size() * lineHeight - 2;
+      final int bgMargin = 2;
+      if (scale == 0d)
+      {
+        return 0;
+      }
+      if (scale != 1d)
+      {
+        if (scale != 0)
+        {
+          xOff = (int) (xOff * scale);
+          yOff = (int) (yOff * scale);
+        }
+        RenderSystem.pushMatrix();
+        RenderSystem.scaled(scale, scale, 0);
+      }
+      double posX = xOff + bgMargin;
+      double posY = yOff + bgMargin;
+      posY = RenderUtils.getHudPosY((int) posY, yOff, contentHeight, scale, alignment);
+      posY += RenderUtils.getHudOffsetForPotions(alignment, scale, this.mc.player);
+      for(Text line : lines)
+      {
+        if(line == null) line = Text.of("NULL");
+        final int width = fontRenderer.getWidth(line);
+        switch (alignment)
+        {
+          case TOP_RIGHT:
+          case BOTTOM_RIGHT:
+            posX = (scaledWidth / scale) - width - xOff - bgMargin;
+            break;
+          case CENTER:
+            posX = (scaledWidth / scale / 2) - (width / 2) - xOff;
+            break;
+          default:
+        }
+        final int x = (int) posX;
+        final int y = (int) posY;
+        posY += lineHeight;
+        if (useBackground)
+        {
+          RenderUtils.drawRect(x - bgMargin, y - bgMargin, width + bgMargin, bgMargin + fontRenderer.fontHeight, bgColor);
+        }
+        if (useShadow)
+        {
+          fontRenderer.drawWithShadow(matrixStack, line, x, y, textColor);
+        }
+        else
+        {
+          fontRenderer.draw(matrixStack, line, x, y, textColor);
+        }
+      }
+      if (scale != 1d)
+      {
+        RenderSystem.popMatrix();
+      }
+      return contentHeight + bgMargin * 2;
     }
 
     @Override
@@ -145,7 +221,7 @@ public class RenderHandler implements IRenderer
             boolean useBackground = Configs.Generic.USE_TEXT_BACKGROUND.getBooleanValue();
             boolean useShadow = Configs.Generic.USE_FONT_SHADOW.getBooleanValue();
 
-            RenderUtils.renderText(x, y, Configs.Generic.FONT_SCALE.getDoubleValue(), textColor, bgColor, alignment, useBackground, useShadow, this.lines, matrixStack);
+            renderText(x, y, Configs.Generic.FONT_SCALE.getDoubleValue(), textColor, bgColor, alignment, useBackground, useShadow, this.lines, matrixStack);
         }
     }
 
@@ -267,13 +343,42 @@ public class RenderHandler implements IRenderer
 
         for (StringHolder holder : this.lineWrappers)
         {
-            this.lines.add(holder.str);
+          try
+          {
+            this.lines.add(Text.Serializer.fromLenientJson(holder.str));
+          }
+          catch(Exception e)
+          {
+            this.lines.add(Text.of("Formatting failed - Invalid JSON"));
+          }
         }
     }
 
     private void addLine(String text)
     {
-        this.lineWrappers.add(new StringHolder(text));
+      this.lineWrappers.add(new StringHolder(text));
+    }
+
+    private String applyColors(String str)
+    {
+      return str.replace("{colorfg}", Configs.Colors.COLORFG.getStringValue())
+        .replace("{colorbg}", Configs.Colors.COLORBG.getStringValue())
+        .replace("{color0}", Configs.Colors.COLOR0.getStringValue())
+        .replace("{color1}", Configs.Colors.COLOR1.getStringValue())
+        .replace("{color2}", Configs.Colors.COLOR2.getStringValue())
+        .replace("{color3}", Configs.Colors.COLOR3.getStringValue())
+        .replace("{color4}", Configs.Colors.COLOR4.getStringValue())
+        .replace("{color5}", Configs.Colors.COLOR5.getStringValue())
+        .replace("{color6}", Configs.Colors.COLOR6.getStringValue())
+        .replace("{color7}", Configs.Colors.COLOR7.getStringValue())
+        .replace("{color8}", Configs.Colors.COLOR8.getStringValue())
+        .replace("{color9}", Configs.Colors.COLOR9.getStringValue())
+        .replace("{color10}", Configs.Colors.COLOR10.getStringValue())
+        .replace("{color11}", Configs.Colors.COLOR11.getStringValue())
+        .replace("{color12}", Configs.Colors.COLOR12.getStringValue())
+        .replace("{color13}", Configs.Colors.COLOR13.getStringValue())
+        .replace("{color14}", Configs.Colors.COLOR14.getStringValue())
+        .replace("{color15}", Configs.Colors.COLOR15.getStringValue());
     }
 
     private void addLine(InfoToggle type)
@@ -287,51 +392,75 @@ public class RenderHandler implements IRenderer
 
         @SuppressWarnings("deprecation")
         boolean isChunkLoaded = mc.world.isChunkLoaded(pos);
+        if (isChunkLoaded == false) return;
 
-        if (isChunkLoaded == false)
+        switch(type)
         {
-            return;
-        }
+          case FPS:
+            this.addLine(format(applyColors(Configs.Formats.FPS_FORMAT.getStringValue()).replace("{FPS}", "%"), this.fps));
+            break;
 
-        if (type == InfoToggle.FPS)
-        {
-            this.addLine(String.format("%d fps", this.fps));
-        }
-        else if (type == InfoToggle.MEMORY_USAGE)
-        {
+          case MEMORY_USAGE:
             long memMax = Runtime.getRuntime().maxMemory();
             long memTotal = Runtime.getRuntime().totalMemory();
             long memFree = Runtime.getRuntime().freeMemory();
             long memUsed = memTotal - memFree;
 
-            this.addLine(String.format("Mem: % 2d%% %03d/%03dMB | Allocated: % 2d%% %03dMB",
-                    memUsed * 100L / memMax,
-                    MiscUtils.bytesToMb(memUsed),
-                    MiscUtils.bytesToMb(memMax),
-                    memTotal * 100L / memMax,
-                    MiscUtils.bytesToMb(memTotal)));
-        }
-        else if (type == InfoToggle.TIME_REAL)
-        {
+            this.addLine(format(format(format(format(format(applyColors(Configs.Formats.MEMORY_USAGE_FORMAT.getStringValue())
+                .replace("%", "\0")
+                .replace("{pused}", "%"), memUsed * 100L / memMax)
+                .replace("{used}", "%"), MiscUtils.bytesToMb(memUsed))
+                .replace("{max}", "%"), MiscUtils.bytesToMb(memMax))
+                .replace("{pallocated}", "%"), memTotal * 100L / memMax)
+                .replace("{total}", "%"), MiscUtils.bytesToMb(memTotal)).replace("\0", "%"));
+            break;
+
+          case TIME_REAL:
             try
             {
-                SimpleDateFormat sdf = new SimpleDateFormat(Configs.Generic.DATE_FORMAT_REAL.getStringValue());
+                SimpleDateFormat sdf = new SimpleDateFormat("G:GGGG:y:yy:yyy:yyyy:Y:YY:YYY:YYYY:M:MM:MMM:w:ww:W:D:DD:DDD:d:dd:F:E:EEEE:u:a:aaaa:H:HH:k:kk:K:KK:h:hh:m:mm:s:ss:S:SS:SSS:z:zzzz:Z:X");
                 this.date.setTime(System.currentTimeMillis());
-                this.addLine(sdf.format(this.date));
+                String[] times = sdf.format(this.date).split(":");
+                //this.addLine(sdf.format(this.date));
+                this.addLine(applyColors(Configs.Formats.TIME_REAL_FORMAT.getStringValue())
+                  .replace("{G}", times[0]).replace("{GGGG}", times[1])
+                  .replace("{y}", times[2]).replace("{yy}", times[3]).replace("{yyy}", times[4]).replace("{yyyy}", times[5])
+                  .replace("{Y}", times[6]).replace("{YY}", times[7]).replace("{YYY}", times[8]).replace("{YYYY}", times[9])
+                  .replace("{M}", times[10]).replace("{MM}", times[11]).replace("{MMM}", times[12])
+                  .replace("{w}", times[13]).replace("{ww}", times[14])
+                  .replace("{W}", times[15])
+                  .replace("{D}", times[16]).replace("{DD}", times[17]).replace("{DDD}", times[18])
+                  .replace("{d}", times[19]).replace("{dd}", times[20])
+                  .replace("{F}", times[21])
+                  .replace("{E}", times[22]).replace("{EEEE}", times[23])
+                  .replace("{u}", times[24])
+                  .replace("{a}", times[25]).replace("{aaaa}", times[26])
+                  .replace("{H}", times[27]).replace("{HH}", times[28])
+                  .replace("{k}", times[29]).replace("{kk}", times[30])
+                  .replace("{K}", times[31]).replace("{KK}", times[32])
+                  .replace("{h}", times[33]).replace("{hh}", times[34])
+                  .replace("{m}", times[35]).replace("{mm}", times[36])
+                  .replace("{s}", times[37]).replace("{ss}", times[38])
+                  .replace("{S}", times[39]).replace("{SS}", times[40]).replace("{SSS}", times[41])
+                  .replace("{z}", times[42]).replace("{zzzz}", times[43])
+                  .replace("{Z}", times[44])
+                  .replace("{X}", times[45]));
             }
             catch (Exception e)
             {
-                this.addLine("Date formatting failed - Invalid date format string?");
+                this.addLine("\"Date formatting failed - Invalid date format string?\"");
             }
-        }
-        else if (type == InfoToggle.TIME_WORLD)
-        {
-            long current = world.getTimeOfDay();
-            long total = world.getTime();
-            this.addLine(String.format("World time: %5d - total: %d", current, total));
-        }
-        else if (type == InfoToggle.TIME_WORLD_FORMATTED)
-        {
+            break;
+
+          case TIME_WORLD:
+
+            this.addLine(format(format(applyColors(Configs.Formats.TIME_WORLD_FORMAT.getStringValue())
+                .replace("%", "\0")
+                .replace("{time}", "%"), world.getTimeOfDay())
+                .replace("{total}", "%"), world.getTime()).replace("\0", "%"));
+            break;
+
+          case TIME_WORLD_FORMATTED:
             try
             {
                 long timeDay = world.getTimeOfDay();
@@ -342,34 +471,37 @@ public class RenderHandler implements IRenderer
                 int min = (int) (dayTicks / 16.666666) % 60;
                 int sec = (int) (dayTicks / 0.277777) % 60;
 
-                String str = Configs.Generic.DATE_FORMAT_MINECRAFT.getStringValue();
-                str = str.replace("{DAY}",  String.format("%d", day));
-                str = str.replace("{DAY_1}",String.format("%d", day + 1));
-                str = str.replace("{HOUR}", String.format("%02d", hour));
-                str = str.replace("{MIN}",  String.format("%02d", min));
-                str = str.replace("{SEC}",  String.format("%02d", sec));
-
-                this.addLine(str);
+            this.addLine(format(format(format(format(format(applyColors(Configs.Formats.TIME_WORLD_FORMATTED_FORMAT.getStringValue())
+                .replace("%", "\0")
+                .replace("{day}", "%"), day)
+                .replace("{day_1}", "%"), day + 1)
+                .replace("{hour}", "%"), hour)
+                .replace("{min}", "%"), min)
+                .replace("{sec}", "%"), sec).replace("\0", "%"));
             }
             catch (Exception e)
             {
-                this.addLine("Date formatting failed - Invalid date format string?");
+                this.addLine("\"Date formatting failed - Invalid date format string?\"");
             }
-        }
-        else if (type == InfoToggle.TIME_DAY_MODULO)
-        {
+            break;
+
+          case TIME_DAY_MODULO:
             int mod = Configs.Generic.TIME_DAY_DIVISOR.getIntegerValue();
-            long current = world.getTimeOfDay() % mod;
-            this.addLine(String.format("Day time %% %d: %5d", mod, current));
-        }
-        else if (type == InfoToggle.TIME_TOTAL_MODULO)
-        {
-            int mod = Configs.Generic.TIME_TOTAL_DIVISOR.getIntegerValue();
-            long current = world.getTime() % mod;
-            this.addLine(String.format("Total time %% %d: %5d", mod, current));
-        }
-        else if (type == InfoToggle.SERVER_TPS)
-        {
+            this.addLine(format(format(applyColors(Configs.Formats.TIME_DAY_MODULO_FORMAT.getStringValue())
+              .replace("%", "\0")
+              .replace("{mod}", "%"), mod)
+              .replace("{time}", "%"), world.getTimeOfDay() % mod).replace("\0", "%"));
+            break;
+
+          case TIME_TOTAL_MODULO:
+            int mod1 = Configs.Generic.TIME_TOTAL_DIVISOR.getIntegerValue();
+            this.addLine(format(format(applyColors(Configs.Formats.TIME_TOTAL_MODULO_FORMAT.getStringValue())
+              .replace("%", "\0")
+              .replace("{mod}", "%"), mod1)
+              .replace("{time}", "%"), world.getTime() % mod1).replace("\0", "%"));
+            break;
+
+          case SERVER_TPS:
             if (mc.isIntegratedServerRunning() && (mc.getServer().getTicks() % 10) == 0)
             {
                 this.data.updateIntegratedServerTPS();
@@ -377,393 +509,318 @@ public class RenderHandler implements IRenderer
 
             if (this.data.hasTPSData())
             {
-                double tps = this.data.getServerTPS();
-                double mspt = this.data.getServerMSPT();
-                String rst = GuiBase.TXT_RST;
-                String preTps = tps >= 20.0D ? GuiBase.TXT_GREEN : GuiBase.TXT_RED;
-                String preMspt;
+              double tps = this.data.getServerTPS();
+              double mspt = this.data.getServerMSPT();
+              String rst = GuiBase.TXT_RST;
+              String preTps = tps >= 20.0D ? GuiBase.TXT_GREEN : GuiBase.TXT_RED;
+              String preMspt;
 
-                // Carpet server and integrated server have actual meaningful MSPT data available
-                if (this.data.isCarpetServer() || mc.isInSingleplayer())
-                {
-                    if      (mspt <= 40) { preMspt = GuiBase.TXT_GREEN; }
-                    else if (mspt <= 45) { preMspt = GuiBase.TXT_YELLOW; }
-                    else if (mspt <= 50) { preMspt = GuiBase.TXT_GOLD; }
-                    else                 { preMspt = GuiBase.TXT_RED; }
+              // Carpet server and integrated server have actual meaningful MSPT data available
+              if (this.data.isCarpetServer() || mc.isInSingleplayer())
+              {
+                if      (mspt <= 40) { preMspt = GuiBase.TXT_GREEN; }
+                else if (mspt <= 45) { preMspt = GuiBase.TXT_YELLOW; }
+                else if (mspt <= 50) { preMspt = GuiBase.TXT_GOLD; }
+                else                 { preMspt = GuiBase.TXT_RED; }
 
-                    this.addLine(String.format("Server TPS: %s%.1f%s MSPT: %s%.1f%s", preTps, tps, rst, preMspt, mspt, rst));
-                }
-                else
-                {
-                    if (mspt <= 51) { preMspt = GuiBase.TXT_GREEN; }
-                    else            { preMspt = GuiBase.TXT_RED; }
+                this.addLine(format(format(applyColors(Configs.Formats.SERVER_TPS_CARPET_FORMAT.getStringValue())
+                  .replace("%", "\0")
+                  .replace("{preTps}", preTps)
+                  .replace("{tps}", "%"), tps)
+                  .replace("{rst}", rst)
+                  .replace("{preMspt}", preMspt)
+                  .replace("{mspt}", "%"), mspt).replace("\0", "%"));
+              }
+              else
+              {
+                if (mspt <= 51) { preMspt = GuiBase.TXT_GREEN; }
+                else            { preMspt = GuiBase.TXT_RED; }
 
-                    this.addLine(String.format("Server TPS: %s%.1f%s (MSPT [est]: %s%.1f%s)", preTps, tps, rst, preMspt, mspt, rst));
-                }
+                this.addLine(format(format(applyColors(Configs.Formats.SERVER_TPS_VANILLA_FORMAT.getStringValue())
+                  .replace("%", "\0")
+                  .replace("{preTps}", preTps)
+                  .replace("{tps}", "%"), tps)
+                  .replace("{rst}", rst)
+                  .replace("{preMspt}", preMspt)
+                  .replace("{mspt}", "%"), mspt).replace("\0", "%"));
+              }
             }
             else
             {
-                this.addLine("Server TPS: <no valid data>");
+              this.addLine(applyColors(Configs.Formats.SERVER_TPS_NULL_FORMAT.getStringValue()));
             }
-        }
-        else if (type == InfoToggle.PING)
-        {
+            break;
+
+          case PING:
             PlayerListEntry info = mc.player.networkHandler.getPlayerListEntry(mc.player.getUuid());
 
             if (info != null)
             {
-                this.addLine("Ping: " + info.getLatency() + " ms");
+              this.addLine(format(applyColors(Configs.Formats.PING_FORMAT.getStringValue()).replace("{ping}", "%"), info.getLatency()));
             }
-        }
-        else if (type == InfoToggle.COORDINATES ||
-                 type == InfoToggle.COORDINATES_SCALED ||
-                 type == InfoToggle.DIMENSION)
-        {
+            break;
+
+          case COORDINATES:
+          //ADD case COORDINATES_SCALED:
+          case DIMENSION:
             // Don't add the same line multiple times
-            if (this.addedTypes.contains(InfoToggle.COORDINATES) ||
-                this.addedTypes.contains(InfoToggle.COORDINATES_SCALED) ||
-                this.addedTypes.contains(InfoToggle.DIMENSION))
-            {
-                return;
-            }
-
-            String pre = "";
+            if (this.addedTypes.contains(InfoToggle.COORDINATES) || this.addedTypes.contains(InfoToggle.DIMENSION))
+              return;
+            //String pre = "";
             StringBuilder str = new StringBuilder(128);
-            String fmtStr = Configs.Generic.COORDINATE_FORMAT_STRING.getStringValue();
-            double x = entity.getX();
-            double z = entity.getZ();
-
+            str.append("[");
             if (InfoToggle.COORDINATES.getBooleanValue())
             {
-                if (Configs.Generic.USE_CUSTOMIZED_COORDINATES.getBooleanValue())
-                {
-                    try
-                    {
-                        str.append(String.format(fmtStr, x, y, z));
-                    }
-                    // Uh oh, someone done goofed their format string... :P
-                    catch (Exception e)
-                    {
-                        str.append("broken coordinate format string!");
-                    }
-                }
-                else
-                {
-                    str.append(String.format("XYZ: %.2f / %.4f / %.2f", x, y, z));
-                }
-
-                pre = " / ";
+              str.append(format(format(format(applyColors(Configs.Formats.COORDINATES_FORMAT.getStringValue())
+                .replace("%", "\0")
+                .replace("{x}", "%"), entity.getX())
+                .replace("{y}", "%"), y)
+                .replace("{z}", "%"), entity.getZ()).replace("\0", "%"));
+              this.addedTypes.add(InfoToggle.COORDINATES);
             }
-
-            if (InfoToggle.COORDINATES_SCALED.getBooleanValue() &&
-                (world.getRegistryKey() == World.NETHER || world.getRegistryKey() == World.OVERWORLD))
-            {
-                boolean isNether = world.getRegistryKey() == World.NETHER;
-                double scale = isNether ? 8.0 : 1.0 / 8.0;
-                x *= scale;
-                z *= scale;
-
-                str.append(pre);
-
-                if (isNether)
-                {
-                    str.append("Overworld: ");
-                }
-                else
-                {
-                    str.append("Nether: ");
-                }
-
-                if (Configs.Generic.USE_CUSTOMIZED_COORDINATES.getBooleanValue())
-                {
-                    try
-                    {
-                        str.append(String.format(fmtStr, x, y, z));
-                    }
-                    // Uh oh, someone done goofed their format string... :P
-                    catch (Exception e)
-                    {
-                        str.append("broken coordinate format string!");
-                    }
-                }
-                else
-                {
-                    str.append(String.format("XYZ: %.2f / %.4f / %.2f", x, y, z));
-                }
-
-                pre = " / ";
-            }
-
             if (InfoToggle.DIMENSION.getBooleanValue())
             {
-                String dimName = world.getRegistryKey().getValue().toString();
-                str.append(pre).append("dim: ").append(dimName);
+              if(InfoToggle.COORDINATES.getBooleanValue()) str.append(",");
+              str.append(applyColors(Configs.Formats.DIMENSION_FORMAT.getStringValue())
+                .replace("{dim}", world.getRegistryKey().getValue().toString()));
+              this.addedTypes.add(InfoToggle.DIMENSION);
             }
+            this.addLine(str.append("]").toString());
+            break;
 
-            this.addLine(str.toString());
-
-            this.addedTypes.add(InfoToggle.COORDINATES);
-            this.addedTypes.add(InfoToggle.COORDINATES_SCALED);
-            this.addedTypes.add(InfoToggle.DIMENSION);
-        }
-        else if (type == InfoToggle.BLOCK_POS ||
-                 type == InfoToggle.CHUNK_POS ||
-                 type == InfoToggle.REGION_FILE)
-        {
+          case BLOCK_POS:
+          case CHUNK_POS:
+          case REGION_FILE:
             // Don't add the same line multiple times
             if (this.addedTypes.contains(InfoToggle.BLOCK_POS) ||
                 this.addedTypes.contains(InfoToggle.CHUNK_POS) ||
                 this.addedTypes.contains(InfoToggle.REGION_FILE))
+              return;
+
+            String pre1 = "";
+            StringBuilder str1 = new StringBuilder(256);
+            str1.append("[");
+            Boolean hasOther = InfoToggle.BLOCK_POS.getBooleanValue();
+            if (hasOther)
             {
-                return;
+              str1.append(format(format(format(applyColors(Configs.Formats.BLOCK_POS_FORMAT.getStringValue())
+                .replace("%", "\0")
+                .replace("{x}", "%"), pos.getX())
+                .replace("{y}", "%"), pos.getY())
+                .replace("{z}", "%"), pos.getZ()).replace("\0", "%"));
+              this.addedTypes.add(InfoToggle.BLOCK_POS);
             }
-
-            String pre = "";
-            StringBuilder str = new StringBuilder(256);
-
-            if (InfoToggle.BLOCK_POS.getBooleanValue())
-            {
-                str.append(String.format("Block: %d, %d, %d", pos.getX(), pos.getY(), pos.getZ()));
-                pre = " / ";
-            }
-
             if (InfoToggle.CHUNK_POS.getBooleanValue())
             {
-                str.append(pre).append(String.format("Sub-Chunk: %d, %d, %d", chunkPos.x, pos.getY() >> 4, chunkPos.z));
-                pre = " / ";
+              if(hasOther) str1.append(",");
+              str1.append(format(format(format(applyColors(Configs.Formats.CHUNK_POS_FORMAT.getStringValue())
+                .replace("%", "\0")
+                .replace("{x}", "%"), chunkPos.x)
+                .replace("{y}", "%"), pos.getY() >> 4)
+                .replace("{z}", "%"), chunkPos.z).replace("\0", "%"));
+              hasOther = true;
+              this.addedTypes.add(InfoToggle.CHUNK_POS);
             }
-
             if (InfoToggle.REGION_FILE.getBooleanValue())
             {
-                str.append(pre).append(String.format("Region: r.%d.%d", pos.getX() >> 9, pos.getZ() >> 9));
+              if(hasOther) str1.append(",");
+              str1.append(format(format(applyColors(Configs.Formats.REGION_FILE_FORMAT.getStringValue())
+                .replace("%", "\0")
+                .replace("{x}", "%"), pos.getX() >> 9)
+                .replace("{z}", "%"), pos.getZ() >> 9).replace("\0", "%"));
+              this.addedTypes.add(InfoToggle.REGION_FILE);
             }
+            this.addLine(str1.append("]").toString());
+            break;
 
-            this.addLine(str.toString());
+          case BLOCK_IN_CHUNK:
+            this.addLine(format(format(format(format(format(format(applyColors(Configs.Formats.BLOCK_IN_CHUNK_FORMAT.getStringValue())
+              .replace("%", "\0")
+              .replace("{x}", "%"), pos.getX() & 0xF)
+              .replace("{y}", "%"), pos.getY() & 0xF)
+              .replace("{z}", "%"), pos.getZ() & 0xf)
+              .replace("{cx}", "%"), chunkPos.x)
+              .replace("{cy}", "%"), pos.getY() >> 4)
+              .replace("{cz}", "%"), chunkPos.z).replace("\0", "%"));
+            break;
 
-            this.addedTypes.add(InfoToggle.BLOCK_POS);
-            this.addedTypes.add(InfoToggle.CHUNK_POS);
-            this.addedTypes.add(InfoToggle.REGION_FILE);
-        }
-        else if (type == InfoToggle.BLOCK_IN_CHUNK)
-        {
-            this.addLine(String.format("Block: %d, %d, %d within Sub-Chunk: %d, %d, %d",
-                        pos.getX() & 0xF, pos.getY() & 0xF, pos.getZ() & 0xF,
-                        chunkPos.x, pos.getY() >> 4, chunkPos.z));
-        }
-        else if (type == InfoToggle.BLOCK_BREAK_SPEED)
-        {
-            this.addLine(String.format("BBS: %.2f", DataStorage.getInstance().getBlockBreakingSpeed()));
-        }
-        else if (type == InfoToggle.DISTANCE)
-        {
+          case BLOCK_BREAK_SPEED:
+            this.addLine(format(applyColors(Configs.Formats.BLOCK_BREAK_SPEED_FORMAT.getStringValue())
+              .replace("%", "\0").replace("{bbs}", "%"), DataStorage.getInstance().getBlockBreakingSpeed()).replace("\0", "%"));
+            break;
+
+          case DISTANCE:
             Vec3d ref = DataStorage.getInstance().getDistanceReferencePoint();
-            double dist = Math.sqrt(ref.squaredDistanceTo(entity.getX(), entity.getY(), entity.getZ()));
-            this.addLine(String.format("Distance: %.2f (x: %.2f y: %.2f z: %.2f) [to x: %.2f y: %.2f z: %.2f]",
-                    dist, entity.getX() - ref.x, entity.getY() - ref.y, entity.getZ() - ref.z, ref.x, ref.y, ref.z));
-        }
-        else if (type == InfoToggle.FACING)
-        {
+            this.addLine(format(format(format(format(format(format(format(applyColors(Configs.Formats.DISTANCE_FORMAT.getStringValue())
+              .replace("%", "\0")
+              .replace("{d}", "%"), Math.sqrt(ref.squaredDistanceTo(entity.getX(), entity.getY(), entity.getZ())))
+              .replace("{dx}", "%"), entity.getX() - ref.x)
+              .replace("{dy}", "%"), entity.getY() - ref.y)
+              .replace("{dz}", "%"), entity.getZ() - ref.z)
+              .replace("{rx}", "%"), ref.x)
+              .replace("{ry}", "%"), ref.y)
+              .replace("{rz}", "%"), ref.z).replace("\0", "%"));
+            break;
+
+          case FACING:
             Direction facing = entity.getHorizontalFacing();
-            String str = "Invalid";
+            String str2 = "Invalid";
 
             switch (facing)
             {
-                case NORTH: str = "Negative Z"; break;
-                case SOUTH: str = "Positive Z"; break;
-                case WEST:  str = "Negative X"; break;
-                case EAST:  str = "Positive X"; break;
-                default:
+              case NORTH: str2 = applyColors(Configs.Formats.FACING_NZ_FORMAT.getStringValue()); break;
+              case SOUTH: str2 = applyColors(Configs.Formats.FACING_PZ_FORMAT.getStringValue()); break;
+              case WEST: str2 = applyColors(Configs.Formats.FACING_NX_FORMAT.getStringValue()); break;
+              case EAST: str2 = applyColors(Configs.Formats.FACING_PX_FORMAT.getStringValue()); break;
+              default:
             }
 
-            this.addLine(String.format("Facing: %s (%s)", facing, str));
-        }
-        else if (type == InfoToggle.LIGHT_LEVEL)
-        {
-            WorldChunk clientChunk = this.getClientChunk(chunkPos);
+            this.addLine(applyColors(Configs.Formats.FACING_FORMAT.getStringValue()).replace("{dir}", facing.toString()).replace("{coord}", str2));
+            break;
 
+          case LIGHT_LEVEL_CLIENT:
+          case LIGHT_LEVEL_SERVER:
+            if(this.addedTypes.contains(InfoToggle.LIGHT_LEVEL_CLIENT) || this.addedTypes.contains(InfoToggle.LIGHT_LEVEL_SERVER))
+              return;
+            WorldChunk clientChunk = this.getClientChunk(chunkPos);
             if (clientChunk.isEmpty() == false)
             {
+              if(InfoToggle.LIGHT_LEVEL_CLIENT.getBooleanValue())
+              {
                 LightingProvider lightingProvider = world.getChunkManager().getLightingProvider();
-
-                this.addLine(String.format("Client Light: %d (block: %d, sky: %d)",
-                        lightingProvider.getLight(pos, 0),
-                        lightingProvider.get(LightType.BLOCK).getLightLevel(pos),
-                        lightingProvider.get(LightType.SKY).getLightLevel(pos)));
-
+                this.addLine(format(format(format(applyColors(Configs.Formats.LIGHT_LEVEL_CLIENT_FORMAT.getStringValue())
+                  .replace("%", "\0")
+                  .replace("{light}", "%"), lightingProvider.getLight(pos, 0))
+                  .replace("{block}", "%"), lightingProvider.get(LightType.BLOCK).getLightLevel(pos))
+                  .replace("{sky}", "%"), lightingProvider.get(LightType.SKY).getLightLevel(pos)).replace("\0", "%"));
+                this.addedTypes.add(InfoToggle.LIGHT_LEVEL_CLIENT);
+              }
+              if(InfoToggle.LIGHT_LEVEL_SERVER.getBooleanValue())
+              {
                 World bestWorld = WorldUtils.getBestWorld(mc);
                 WorldChunk serverChunk = this.getChunk(chunkPos);
-
                 if (serverChunk != null && serverChunk != clientChunk)
                 {
-                    lightingProvider = bestWorld.getChunkManager().getLightingProvider();
-                    int total = lightingProvider.getLight(pos, 0);
-                    int block = lightingProvider.get(LightType.BLOCK).getLightLevel(pos);
-                    int sky = lightingProvider.get(LightType.SKY).getLightLevel(pos);
-                    this.addLine(String.format("Server Light: %d (block: %d, sky: %d)", total, block, sky));
+                  LightingProvider lightingProvider = bestWorld.getChunkManager().getLightingProvider();
+                  this.addLine(format(format(format(applyColors(Configs.Formats.LIGHT_LEVEL_SERVER_FORMAT.getStringValue())
+                    .replace("%", "\0")
+                    .replace("{light}", "%"), lightingProvider.getLight(pos, 0))
+                    .replace("{block}", "%"), lightingProvider.get(LightType.BLOCK).getLightLevel(pos))
+                    .replace("{sky}", "%"), lightingProvider.get(LightType.SKY).getLightLevel(pos)).replace("\0", "%"));
+                  this.addedTypes.add(InfoToggle.LIGHT_LEVEL_SERVER);
                 }
+              }
             }
-        }
-        else if (type == InfoToggle.BEE_COUNT)
-        {
+            break;
+
+          case BEE_COUNT:
             World bestWorld = WorldUtils.getBestWorld(mc);
             BlockEntity be = this.getTargetedBlockEntity(bestWorld, mc);
-
             if (be instanceof BeehiveBlockEntity)
-            {
-                this.addLine("Bees: " + GuiBase.TXT_AQUA + ((BeehiveBlockEntity) be).getBeeCount());
-            }
-        }
-        else if (type == InfoToggle.FURNACE_XP)
-        {
-            World bestWorld = WorldUtils.getBestWorld(mc);
-            BlockEntity be = this.getTargetedBlockEntity(bestWorld, mc);
+              this.addLine(applyColors(Configs.Formats.BEE_COUNT_FORMAT.getStringValue())
+                .replace("{bees}", Integer.toString(((BeehiveBlockEntity) be).getBeeCount())));
+            break;
+            
+            //ADD FURNACE XP
 
-            if (be instanceof AbstractFurnaceBlockEntity furnace)
-            {
-                this.addLine("Furnace XP: " + GuiBase.TXT_AQUA + MiscUtils.getFurnaceXpAmount(furnace));
-            }
-        }
-        else if (type == InfoToggle.HONEY_LEVEL)
-        {
+          case HONEY_LEVEL:
             BlockState state = this.getTargetedBlock(mc);
 
             if (state != null && state.getBlock() instanceof BeehiveBlock)
             {
-                this.addLine("Honey: " + GuiBase.TXT_AQUA + BeehiveBlockEntity.getHoneyLevel(state));
+              this.addLine(applyColors(Configs.Formats.HONEY_LEVEL_FORMAT.getStringValue())
+                .replace("{honey}", Integer.toString(BeehiveBlockEntity.getHoneyLevel(state))));
             }
-        }
-        else if (type == InfoToggle.HORSE_SPEED ||
-                 type == InfoToggle.HORSE_JUMP)
-        {
-            if (this.addedTypes.contains(InfoToggle.HORSE_SPEED) ||
-                this.addedTypes.contains(InfoToggle.HORSE_JUMP))
-            {
-                return;
-            }
-
-            Entity vehicle = this.mc.player.getVehicle();
-
-            if ((vehicle instanceof HorseBaseEntity) == false)
-            {
-                return;
-            }
-
-            HorseBaseEntity horse = (HorseBaseEntity) vehicle;
-
-            if (horse.isSaddled())
-            {
-                if (InfoToggle.HORSE_SPEED.getBooleanValue())
-                {
-                    float speed = horse.getMovementSpeed();
-                    speed *= 42.163f;
-                    this.addLine(String.format("Horse Speed: %.3f m/s", speed));
-                }
-
-                if (InfoToggle.HORSE_JUMP.getBooleanValue())
-                {
-                    double jump = horse.getJumpStrength();
-                    double calculatedJumpHeight =
-                            -0.1817584952d * jump * jump * jump +
-                            3.689713992d * jump * jump +
-                            2.128599134d * jump +
-                            -0.343930367;
-                    this.addLine(String.format("Horse Jump: %.3f m", calculatedJumpHeight));
-                }
-
-                this.addedTypes.add(InfoToggle.HORSE_SPEED);
-                this.addedTypes.add(InfoToggle.HORSE_JUMP);
-            }
-        }
-        else if (type == InfoToggle.ROTATION_YAW ||
-                 type == InfoToggle.ROTATION_PITCH ||
-                 type == InfoToggle.SPEED)
-        {
+            break;
+//ADD HONSE
+          case ROTATION_YAW:
+          case ROTATION_PITCH:
+          case SPEED:
             // Don't add the same line multiple times
             if (this.addedTypes.contains(InfoToggle.ROTATION_YAW) ||
                 this.addedTypes.contains(InfoToggle.ROTATION_PITCH) ||
                 this.addedTypes.contains(InfoToggle.SPEED))
+              return;
+            StringBuilder str3 = new StringBuilder(128);
+            str3.append("[");
+            Boolean hasOther1 = InfoToggle.ROTATION_YAW.getBooleanValue();
+            if(hasOther1)
             {
-                return;
-            }
-
-            String pre = "";
-            StringBuilder str = new StringBuilder(128);
-
-            if (InfoToggle.ROTATION_YAW.getBooleanValue())
-            {
-                str.append(String.format("yaw: %.1f", MathHelper.wrapDegrees(entity.getYaw())));
-                pre = " / ";
+              str3.append(format(applyColors(Configs.Formats.ROTATION_YAW_FORMAT.getStringValue())
+                .replace("%", "\0").replace("{yaw}", "%"), MathHelper.wrapDegrees(entity.getYaw())).replace("\0", "%"));
+              this.addedTypes.add(InfoToggle.ROTATION_YAW);
             }
 
             if (InfoToggle.ROTATION_PITCH.getBooleanValue())
             {
-                str.append(pre).append(String.format("pitch: %.1f", MathHelper.wrapDegrees(entity.getPitch())));
-                pre = " / ";
+              if(hasOther1) str3.append(",");
+              str3.append(format(applyColors(Configs.Formats.ROTATION_PITCH_FORMAT.getStringValue())
+                .replace("%", "\0").replace("{pitch}", "%"), MathHelper.wrapDegrees(entity.getPitch())).replace("\0", "%"));
+              this.addedTypes.add(InfoToggle.ROTATION_PITCH);
+              hasOther1 = true;
             }
 
             if (InfoToggle.SPEED.getBooleanValue())
             {
-                double dx = entity.getX() - entity.lastRenderX;
-                double dy = entity.getY() - entity.lastRenderY;
-                double dz = entity.getZ() - entity.lastRenderZ;
-                double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
-                str.append(pre).append(String.format("speed: %.3f m/s", dist * 20));
+              if(hasOther1) str3.append(",");
+              double dx = entity.getX() - entity.lastRenderX;
+              double dy = entity.getY() - entity.lastRenderY;
+              double dz = entity.getZ() - entity.lastRenderZ;
+              double dist1 = Math.sqrt(dx * dx + dy * dy + dz * dz);
+              str3.append(format(applyColors(Configs.Formats.SPEED_FORMAT.getStringValue())
+                .replace("%", "\0").replace("{speed}", "%"), dist1 * 20).replace("\0", "%"));
+              this.addedTypes.add(InfoToggle.SPEED);
             }
+            this.addLine(str3.append("]").toString());
+            break;
 
-            this.addLine(str.toString());
+// ADD SPEED HV
+          case SPEED_AXIS:
+            this.addLine(format(format(format(applyColors(Configs.Formats.SPEED_AXIS_FORMAT.getStringValue())
+              .replace("%", "\0")
+              .replace("{x}", "%"), (entity.getX() - entity.lastRenderX) * 20)
+              .replace("{y}", "%"), (entity.getY() - entity.lastRenderY) * 20)
+              .replace("{z}", "%"), (entity.getZ() - entity.lastRenderZ) * 20).replace("\0", "%"));
+            break;
 
-            this.addedTypes.add(InfoToggle.ROTATION_YAW);
-            this.addedTypes.add(InfoToggle.ROTATION_PITCH);
-            this.addedTypes.add(InfoToggle.SPEED);
-        }
-        else if (type == InfoToggle.SPEED_HV)
-        {
-            double dx = entity.getX() - entity.lastRenderX;
-            double dy = entity.getY() - entity.lastRenderY;
-            double dz = entity.getZ() - entity.lastRenderZ;
-            this.addLine(String.format("speed: xz: %.3f y: %.3f m/s", Math.sqrt(dx * dx + dz * dz) * 20, dy * 20));
-        }
-        else if (type == InfoToggle.SPEED_AXIS)
-        {
-            double dx = entity.getX() - entity.lastRenderX;
-            double dy = entity.getY() - entity.lastRenderY;
-            double dz = entity.getZ() - entity.lastRenderZ;
-            this.addLine(String.format("speed: x: %.3f y: %.3f z: %.3f m/s", dx * 20, dy * 20, dz * 20));
-        }
-        else if (type == InfoToggle.CHUNK_SECTIONS)
-        {
-            this.addLine(String.format("C: %d", ((IMixinWorldRenderer) mc.worldRenderer).getRenderedChunksInvoker()));
-        }
-        else if (type == InfoToggle.CHUNK_SECTIONS_FULL)
-        {
-            this.addLine(mc.worldRenderer.getChunksDebugString());
-        }
-        else if (type == InfoToggle.CHUNK_UPDATES)
-        {
-            this.addLine("TODO" /*String.format("Chunk updates: %d", ChunkRenderer.chunkUpdateCount)*/);
-        }
-        else if (type == InfoToggle.LOADED_CHUNKS_COUNT)
-        {
+          case CHUNK_SECTIONS:
+            this.addLine(format(applyColors(Configs.Formats.CHUNK_SECTIONS_FORMAT.getStringValue())
+              .replace("%", "\0").replace("{c}", "%"), ((IMixinWorldRenderer) mc.worldRenderer).getRenderedChunksInvoker()).replace("\0", "%"));
+            break;
+
+          case CHUNK_SECTIONS_FULL:
+            this.addLine(applyColors(Configs.Formats.CHUNK_SECTIONS_FULL_FORMAT.getStringValue())
+              .replace("{c}", mc.worldRenderer.getChunksDebugString()));
+            break;
+
+          case CHUNK_UPDATES:
+            this.addLine("TODO" /*format("Chunk updates: %d", ChunkRenderer.chunkUpdateCount)*/);
+            break;
+
+          case LOADED_CHUNKS_COUNT:
             String chunksClient = mc.world.asString();
             World worldServer = WorldUtils.getBestWorld(mc);
 
             if (worldServer != null && worldServer != mc.world)
             {
-                int chunksServer = ((ServerChunkManager) worldServer.getChunkManager()).getLoadedChunkCount();
-                int chunksServerTot = ((ServerChunkManager) worldServer.getChunkManager()).getTotalChunksLoadedCount();
-                this.addLine(String.format("Server: %d / %d - Client: %s", chunksServer, chunksServerTot, chunksClient));
+                this.addLine(format(format(applyColors(Configs.Formats.LOADED_CHUNKS_COUNT_SERVER_FORMAT.getStringValue())
+                  .replace("%", "\0")
+                  .replace("{chunks}", "%"), ((ServerChunkManager) worldServer.getChunkManager()).getLoadedChunkCount())
+                  .replace("{total}", "%"), ((ServerChunkManager) worldServer.getChunkManager()).getTotalChunksLoadedCount())
+                  .replace("{client}", chunksClient).replace("\0", "%"));
             }
             else
             {
-                this.addLine(chunksClient);
+                this.addLine(applyColors(Configs.Formats.LOADED_CHUNKS_COUNT_CLIENT_FORMAT.getStringValue()).replace("{client}", chunksClient));
             }
-        }
-        else if (type == InfoToggle.PARTICLE_COUNT)
-        {
-            this.addLine(String.format("P: %s", mc.particleManager.getDebugString()));
-        }
-        else if (type == InfoToggle.DIFFICULTY)
-        {
+            break;
+
+          case PARTICLE_COUNT:
+            this.addLine(applyColors(Configs.Formats.PARTICLE_COUNT_FORMAT.getStringValue())
+              .replace("{p}", mc.particleManager.getDebugString()));
+            break;
+
+          case DIFFICULTY:
             long chunkInhabitedTime = 0L;
             float moonPhaseFactor = 0.0F;
             WorldChunk serverChunk = this.getChunk(chunkPos);
@@ -773,170 +830,180 @@ public class RenderHandler implements IRenderer
                 moonPhaseFactor = mc.world.getMoonSize();
                 chunkInhabitedTime = serverChunk.getInhabitedTime();
             }
-
             LocalDifficulty diff = new LocalDifficulty(mc.world.getDifficulty(), mc.world.getTimeOfDay(), chunkInhabitedTime, moonPhaseFactor);
-            this.addLine(String.format("Local Difficulty: %.2f // %.2f (Day %d)",
-                    diff.getLocalDifficulty(), diff.getClampedLocalDifficulty(), mc.world.getTimeOfDay() / 24000L));
-        }
-        else if (type == InfoToggle.BIOME)
-        {
+            this.addLine(format(format(format(applyColors(Configs.Formats.DIFFICULTY_FORMAT.getStringValue())
+              .replace("%", "\0")
+              .replace("{local}", "%"), diff.getLocalDifficulty())
+              .replace("{clamped}", "%"), diff.getClampedLocalDifficulty())
+              .replace("{day}", "%"), mc.world.getTimeOfDay() / 24000L).replace("\0", "%"));
+            break;
+
+          case BIOME:
             WorldChunk clientChunk = this.getClientChunk(chunkPos);
 
             if (clientChunk.isEmpty() == false)
             {
                 Biome biome = mc.world.getBiome(pos);
                 Identifier id = mc.world.getRegistryManager().get(Registry.BIOME_KEY).getId(biome);
-                this.addLine("Biome: " + StringUtils.translate("biome." + id.toString().replace(":", ".")));
+                this.addLine(applyColors(Configs.Formats.BIOME_FORMAT.getStringValue())
+                  .replace("{biome}", StringUtils.translate("biome." + id.toString().replace(":", "."))));
             }
-        }
-        else if (type == InfoToggle.BIOME_REG_NAME)
-        {
+            break;
+
+          case BIOME_REG_NAME:
             WorldChunk clientChunk = this.getClientChunk(chunkPos);
 
             if (clientChunk.isEmpty() == false)
             {
                 Biome biome = mc.world.getBiome(pos);
                 Identifier rl = mc.world.getRegistryManager().get(Registry.BIOME_KEY).getId(biome);
-                String name = rl != null ? rl.toString() : "?";
-                this.addLine("Biome reg name: " + name);
+                this.addLine(applyColors(Configs.Formats.BIOME_REG_NAME_FORMAT.getStringValue())
+                  .replace("{name}", rl != null ? rl.toString() : "?"));
             }
-        }
-        else if (type == InfoToggle.ENTITIES)
-        {
-            String ent = mc.worldRenderer.getEntitiesDebugString();
+            break;
 
-            int p = ent.indexOf(",");
-
-            if (p != -1)
-            {
-                ent = ent.substring(0, p);
-            }
-
-            this.addLine(ent);
-        }
-        else if (type == InfoToggle.TILE_ENTITIES)
-        {
+          case TILE_ENTITIES:
             // TODO 1.17
             //this.addLine(String.format("Client world TE - L: %d, T: %d", mc.world.blockEntities.size(), mc.world.tickingBlockEntities.size()));
-            this.addLine("Client world TE - L: ?, T: ? - TODO 1.17");
-        }
-        else if (type == InfoToggle.ENTITIES_CLIENT_WORLD)
-        {
-            int countClient = mc.world.getRegularEntityCount();
+            this.addLine(format(format(applyColors(Configs.Formats.TILE_ENTITIES_FORMAT.getStringValue())
+              .replace("%", "\0")
+              .replace("{loaded}", "%"), "? (TODO 1.17)")
+              .replace("{ticking}", "%"), "? (TODO 1.17)").replace("\0", "%"));
+            break;
 
-            if (mc.isIntegratedServerRunning())
+          case ENTITIES_CLIENT:
+          case ENTITIES_SERVER:
+            if (this.addedTypes.contains(InfoToggle.ENTITIES_CLIENT) ||
+                this.addedTypes.contains(InfoToggle.ENTITIES_SERVER))
+              return;
+            StringBuilder str4 = new StringBuilder(128);
+            str4.append("[");
+            Boolean hasOther2 = InfoToggle.ENTITIES_CLIENT.getBooleanValue();
+            if(hasOther2)
+            {
+              str4.append(format(applyColors(Configs.Formats.ENTITIES_CLIENT_FORMAT.getStringValue())
+                .replace("%", "\0")
+                .replace("{e}", "%"), mc.world.getRegularEntityCount()).replace("\0", "%"));
+              this.addedTypes.add(InfoToggle.ENTITIES_CLIENT);
+            }
+            if(InfoToggle.ENTITIES_SERVER.getBooleanValue() && mc.isIntegratedServerRunning())
             {
                 World serverWorld = WorldUtils.getBestWorld(mc);
-
                 if (serverWorld instanceof ServerWorld)
                 {
-                    IServerEntityManager manager = (IServerEntityManager) ((IMixinServerWorld) serverWorld).minihud_getEntityManager();
-                    int indexSize = manager.getIndexSize();
-                    this.addLine(String.format("Entities - Client: %d - Server: %d", countClient, indexSize));
-                    return;
+                  if(hasOther2) str4.append(",");
+                  str4.append(format(applyColors(Configs.Formats.ENTITIES_SERVER_FORMAT.getStringValue())
+                    .replace("%", "\0")
+                    .replace("{e}", "%"), ((IServerEntityManager) ((IMixinServerWorld) serverWorld).minihud_getEntityManager()).getIndexSize()).replace("\0", "%"));
+                  this.addedTypes.add(InfoToggle.ENTITIES_SERVER);
+                  hasOther2 = true;
                 }
             }
+            if(hasOther2) this.addLine(str4.append("]").toString());
+            break;
 
-            this.addLine(String.format("Entities - Client: %d", countClient));
-        }
-        else if (type == InfoToggle.SLIME_CHUNK)
-        {
+          case SLIME_CHUNK:
             if (MiscUtils.isOverworld(world) == false)
-            {
-                return;
-            }
-
-            String result;
-
+              return;
             if (this.data.isWorldSeedKnown(world))
             {
                 long seed = this.data.getWorldSeed(world);
-
                 if (MiscUtils.canSlimeSpawnAt(pos.getX(), pos.getZ(), seed))
                 {
-                    result = GuiBase.TXT_GREEN + "YES" + GuiBase.TXT_RST;
+                  this.addLine(applyColors(Configs.Formats.SLIME_CHUNK_FORMAT.getStringValue())
+                    .replace("{result}", applyColors(Configs.Formats.SLIME_CHUNK_YES_FORMAT.getStringValue())));
                 }
                 else
                 {
-                    result = GuiBase.TXT_RED + "NO" + GuiBase.TXT_RST;
+                  this.addLine(applyColors(Configs.Formats.SLIME_CHUNK_FORMAT.getStringValue())
+                    .replace("{result}", applyColors(Configs.Formats.SLIME_CHUNK_NO_FORMAT.getStringValue())));
                 }
             }
             else
             {
-                result = "<world seed not known>";
+              this.addLine(applyColors(Configs.Formats.SLIME_CHUNK_NO_SEED_FORMAT.getStringValue()));
             }
+            break;
 
-            this.addLine("Slime chunk: " + result);
-        }
-        else if (type == InfoToggle.LOOKING_AT_ENTITY)
-        {
+          case LOOKING_AT_ENTITY:
             if (mc.crosshairTarget != null && mc.crosshairTarget.getType() == HitResult.Type.ENTITY)
             {
-                Entity lookedEntity = ((EntityHitResult) mc.crosshairTarget).getEntity();
-
-                if (lookedEntity instanceof LivingEntity)
-                {
-                    LivingEntity living = (LivingEntity) lookedEntity;
-                    this.addLine(String.format("Entity: %s - HP: %.1f / %.1f",
-                            living.getName().getString(), living.getHealth(), living.getMaxHealth()));
-                }
-                else
-                {
-                    this.addLine(String.format("Entity: %s", lookedEntity.getName().getString()));
-                }
+              Entity lookedEntity = ((EntityHitResult) mc.crosshairTarget).getEntity();
+              if (lookedEntity instanceof LivingEntity)
+              {
+                LivingEntity living = (LivingEntity) lookedEntity;
+                this.addLine(format(format(applyColors(Configs.Formats.LOOKING_AT_ENTITY_LIVING_FORMAT.getStringValue())
+                  .replace("%", "\0")
+                  .replace("{entity}", lookedEntity.getName().getString())
+                  .replace("{hp}", "%"), living.getHealth())
+                  .replace("{maxhp}", "%"), living.getMaxHealth()).replace("\0", "%"));
+              }
+              else
+              {
+                this.addLine(applyColors(Configs.Formats.LOOKING_AT_ENTITY_FORMAT.getStringValue())
+                  .replace("{entity}", lookedEntity.getName().getString()));
+              }
             }
-        }
-        else if (type == InfoToggle.ENTITY_REG_NAME)
-        {
+            break;
+
+          case ENTITY_REG_NAME:
             if (mc.crosshairTarget != null && mc.crosshairTarget.getType() == HitResult.Type.ENTITY)
             {
-                Entity lookedEntity = ((EntityHitResult) mc.crosshairTarget).getEntity();
-                Identifier regName = EntityType.getId(lookedEntity.getType());
+              Entity lookedEntity = ((EntityHitResult) mc.crosshairTarget).getEntity();
+              Identifier regName = EntityType.getId(lookedEntity.getType());
 
-                if (regName != null)
-                {
-                    this.addLine(String.format("Entity reg name: %s", regName.toString()));
-                }
+              if (regName != null)
+              {
+                this.addLine(applyColors(Configs.Formats.ENTITY_REG_NAME_FORMAT.getStringValue())
+                  .replace("{name}", regName.toString()));
+              }
             }
-        }
-        else if (type == InfoToggle.LOOKING_AT_BLOCK ||
-                 type == InfoToggle.LOOKING_AT_BLOCK_CHUNK)
-        {
+            break;
+
+          case LOOKING_AT_BLOCK:
+          case LOOKING_AT_BLOCK_CHUNK:
             // Don't add the same line multiple times
             if (this.addedTypes.contains(InfoToggle.LOOKING_AT_BLOCK) ||
                 this.addedTypes.contains(InfoToggle.LOOKING_AT_BLOCK_CHUNK))
-            {
-                return;
-            }
-
+              return;
             if (mc.crosshairTarget != null && mc.crosshairTarget.getType() == HitResult.Type.BLOCK)
             {
                 BlockPos lookPos = ((BlockHitResult) mc.crosshairTarget).getBlockPos();
-                String pre = "";
-                StringBuilder str = new StringBuilder(128);
-
-                if (InfoToggle.LOOKING_AT_BLOCK.getBooleanValue())
+                StringBuilder str5 = new StringBuilder(128);
+                str5.append("[");
+                Boolean hasOther3 = InfoToggle.LOOKING_AT_BLOCK.getBooleanValue();
+                if(hasOther3)
                 {
-                    str.append(String.format("Looking at block: %d, %d, %d", lookPos.getX(), lookPos.getY(), lookPos.getZ()));
-                    pre = " // ";
+                  str5.append(format(format(format(applyColors(Configs.Formats.LOOKING_AT_BLOCK_FORMAT.getStringValue())
+                    .replace("%", "\0")
+                    .replace("{x}", "%"), lookPos.getX())
+                    .replace("{y}", "%"), lookPos.getY())
+                    .replace("{z}", "%"), lookPos.getZ()).replace("\0", "%"));
+                  this.addedTypes.add(InfoToggle.LOOKING_AT_BLOCK);
                 }
 
                 if (InfoToggle.LOOKING_AT_BLOCK_CHUNK.getBooleanValue())
                 {
-                    str.append(pre).append(String.format("Block: %d, %d, %d in Sub-Chunk: %d, %d, %d",
-                            lookPos.getX() & 0xF, lookPos.getY() & 0xF, lookPos.getZ() & 0xF,
-                            lookPos.getX() >> 4, lookPos.getY() >> 4, lookPos.getZ() >> 4));
+                  if(hasOther3) str5.append(",");
+                  str5.append(format(format(format(format(format(format(applyColors(Configs.Formats.LOOKING_AT_BLOCK_CHUNK_FORMAT.getStringValue())
+                    .replace("%", "\0")
+                    .replace("{x}", "%"), lookPos.getX() & 0xf)
+                    .replace("{y}", "%"), lookPos.getY() & 0xf)
+                    .replace("{z}", "%"), lookPos.getZ() & 0xf)
+                    .replace("{cx}", "%"), lookPos.getX() >> 4)
+                    .replace("{cy}", "%"), lookPos.getY() >> 4)
+                    .replace("{cz}", "%"), lookPos.getZ() >> 4).replace("\0", "%"));
+                  this.addedTypes.add(InfoToggle.LOOKING_AT_BLOCK_CHUNK);
                 }
-
-                this.addLine(str.toString());
-
-                this.addedTypes.add(InfoToggle.LOOKING_AT_BLOCK);
-                this.addedTypes.add(InfoToggle.LOOKING_AT_BLOCK_CHUNK);
+                str5.append("]");
+                this.addLine(str5.toString());
             }
-        }
-        else if (type == InfoToggle.BLOCK_PROPS)
-        {
+            break;
+
+          case BLOCK_PROPS:
             this.getBlockProperties(mc);
+            break;
+
         }
     }
 
@@ -975,12 +1042,36 @@ public class RenderHandler implements IRenderer
             BlockState state = mc.world.getBlockState(posLooking);
             Identifier rl = Registry.BLOCK.getId(state.getBlock());
 
-            this.addLine(rl != null ? rl.toString() : "<null>");
+            this.addLine(applyColors(Configs.Formats.BLOCK_PROPS_HEADING_FORMAT.getStringValue()).replace("{name}", rl != null ? rl.toString() : "<null>"));
+            String separator = applyColors(Configs.Formats.BLOCK_PROPS_SEPARATOR_FORMAT.getStringValue());
 
-            for (String line : BlockUtils.getFormattedBlockStateProperties(state))
-            {
-                this.addLine(line);
-            }
+            Collection<Property<?>> properties = state.getProperties();
+            if (properties.size() > 0)
+              for (Property<?> prop : properties)
+              {
+                Comparable<?> val = state.get(prop);
+                if (prop instanceof BooleanProperty)
+                {
+                  this.addLine(val.equals(Boolean.TRUE) ?
+                    applyColors(Configs.Formats.BLOCK_PROPS_BOOLEAN_TRUE_FORMAT.getStringValue()).replace("{prop}", prop.getName()).replace("{separator}", separator):
+                    applyColors(Configs.Formats.BLOCK_PROPS_BOOLEAN_FALSE_FORMAT.getStringValue()).replace("{prop}", prop.getName()).replace("{separator}", separator));
+                }
+                else if (prop instanceof DirectionProperty)
+                {
+                  this.addLine(applyColors(Configs.Formats.BLOCK_PROPS_DIRECTION_FORMAT.getStringValue())
+                    .replace("{prop}", prop.getName()).replace("{separator}", separator).replace("{value}", val.toString()));
+                }
+                else if (prop instanceof IntProperty)
+                {
+                  this.addLine(applyColors(Configs.Formats.BLOCK_PROPS_INT_FORMAT.getStringValue())
+                    .replace("{prop}", prop.getName()).replace("{separator}", separator).replace("{value}", val.toString()));
+                }
+                else
+                {
+                  this.addLine(applyColors(Configs.Formats.BLOCK_PROPS_STRING_FORMAT.getStringValue())
+                    .replace("{prop}", prop.getName()).replace("{separator}", separator).replace("{value}", val.toString()));
+                }
+              }
         }
     }
 

@@ -30,6 +30,8 @@ public class GuiConfigs extends GuiConfigsBase
 
         addOptionsFromList("minihud.gui.button.config_gui.colors", Configs.Colors.OPTIONS, 100);
 
+        addOptionsFromList("minihud.gui.button.config_gui.formats", Configs.Formats.OPTIONS, 400);
+
         addOptionsFromList("minihud.gui.button.config_gui.info_lines", (ImmutableList) ConfigUtils.createConfigWrapperForType(ConfigType.BOOLEAN, ImmutableList.copyOf(InfoToggle.values())), 100);
         addOptionsFromList("minihud.gui.button.config_gui.info_lines", (ImmutableList) ConfigUtils.createConfigWrapperForType(ConfigType.HOTKEY, ImmutableList.copyOf(InfoToggle.values())), 100);
         addOptionsFromList("minihud.gui.button.config_gui.info_lines", (ImmutableList) ConfigUtils.createConfigWrapperForType(ConfigType.INTEGER, ImmutableList.copyOf(InfoToggle.values())), 100);
